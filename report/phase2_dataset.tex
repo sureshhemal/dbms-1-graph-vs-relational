@@ -1,0 +1,53 @@
+% Draft section for the Phase 2 report: where the benchmark dataset comes from
+% and how we generated it. Citations are in references.bib.
+% Needs: booktabs (table rules). Include with \input{phase2_dataset}.
+
+\section{Dataset}\label{sec:dataset}
+
+Comparing how two database systems perform requires a dataset that is large, heavily connected, and drawn from a domain where relationship queries matter. The el\_paso\_airport database used in Phase 1 has at most 500 rows per table, which was enough to show how SQL and Cypher express the same question but far too small to measure performance. We therefore built a dataset of about one million nodes in the fraud-detection domain, a standard use case for graph databases in which the important signal lies in the connections between accounts rather than in any single record.
+
+\subsection{Origin of the Data}
+
+The underlying data comes from PaySim, a mobile money transaction simulator developed by Lopez-Rojas, Elmir and Axelsson at the Department of Computer Science and Engineering, Blekinge Institute of Technology, Sweden~\cite{lopezrojas2016paysim,lopezrojas2016applying,elmir2016paysim}. Real financial transaction data is rarely released because of privacy concerns, so PaySim was built to fill that gap: it was calibrated on aggregated transaction logs from a real mobile money service and generates synthetic transactions, including injected fraud, that follow the same patterns without exposing any real customer~\cite{elmir2016paysim}. The authors published the simulator~\cite{lopezrojas2026paysimcode} and a sample dataset, PaySim1~\cite{lopezrojas2026paysimkaggle}.
+
+Neo4j later converted PaySim data into a property graph and released it as its official fraud-detection example dataset~\cite{neo4j2026frauddetection}, with 332,973 nodes and 980,098 relationships. This graph is the direct source of the shape of our dataset.
+
+\subsection{Generating a Larger Synthetic Dataset}
+
+Neo4j's graph is about a third of the size we needed, so rather than use it directly we wrote a generator, \texttt{scripts/generate\_fraud\_data.py}, that measures the statistical shape of that graph and reproduces it at any requested size~\cite{team6_2026repo}. No records are copied: every identifier, name, amount and link is newly generated from a fixed random seed (42), so the full dataset is reproducible with a single command:
+
+\begin{center}
+\texttt{python3 scripts/generate\_fraud\_data.py --nodes 1100000 --out fraud\_1\_1m}
+\end{center}
+
+\noindent A uniformly random graph of the right size would be useless for testing fraud queries, so the generator preserves the properties that make the original realistic:
+
+\begin{itemize}
+  \item \textbf{Transaction mix:} CashIn 46.1\%, CashOut 23.5\%, Payment 23.1\%, Transfer 6.0\% and Debit 1.4\%, each with the mean amount measured from the source.
+  \item \textbf{Fraud placement:} fraud occurs only on Transfers (3.59\%) and Payments (0.26\%); every fraudulent Transfer goes to a money mule, and 17.8\% of clients are mules, as in the source.
+  \item \textbf{Shared identities:} clients share SSNs, emails and phone numbers (up to 21 clients on one SSN), which creates the hidden rings that fraud-detection queries look for.
+  \item \textbf{Skewed activity:} transactions per client follow a power-law distribution (about 133 on average with a long tail), and each client's transactions are linked in time order by \texttt{NEXT} relationships.
+\end{itemize}
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Neo4j's PaySim-based fraud-detection graph~\cite{neo4j2026frauddetection} compared with our generated dataset.}\label{tab:fraudscale}
+\begin{tabular}{lrr}
+\toprule
+ & \textbf{Source graph} & \textbf{Our dataset} \\
+\midrule
+Nodes & 332,973 & 1,100,000 \\
+Relationships & 980,098 & 3,238,159 \\
+Transactions & 323,489 & 1,068,669 \\
+Clients (of which mules) & 2,433 (433) & 8,038 (1,431) \\
+Merchants / Banks & 347 / 3 & 1,146 / 10 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+As Table~\ref{tab:fraudscale} shows, the result is about 3.3 times the size of the source while keeping the same shape.
+
+\subsection{Loading the Same Data into Each System}
+
+The generator writes a single set of CSV files together with a loader for each system: \texttt{load\_mysql.sql} for MySQL, where each graph relationship becomes a foreign-key column, \texttt{load\_neo4j.cypher} for Neo4j, and \texttt{load\_memgraph.cypher} for Memgraph. Because every system loads identical data, any difference in query results or timings comes from the database engine rather than from the data. The generator, loaders and loading instructions are available in our project repository~\cite{team6_2026repo}.

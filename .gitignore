@@ -15,6 +15,8 @@ fraud_1_1m/*.cypherl.gz
 *.log
 *.out
 *.toc
+*.lol
+*.lot
 *.bbl
 *.blg
 *.synctex.gz
@@ -27,3 +29,16 @@ fraud_1_1m/*.cypherl.gz
 # Course material (not ours to publish)
 Group Research Project: Phase 1.pdf
 whatgoesaround-sigmodrec2024.pdf
+
+# Not part of the fraud dataset (kept locally only)
+el_paso_airport.cypher
+scripts/mysql_to_cypher.py
+scripts/generate_dummy_data.py
+scripts/neo4j_to_cypherl.py
+scripts/stackoverflow_to_mysql.py
+phase1_questions.md
+report/Team6_Phase1.tex
+report/Team6_Phase1.pdf
+report/Team6_Phase1_twocol.tex
+report/Team6_Phase1_twocol.pdf
+report/make_twocol.py
