@@ -1,0 +1,573 @@
+<title>Fraud Detection: Tables or Graphs</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  /* Layout: case-file reading column with a sticky query index on wide screens; each query is one
+     section with the problem, three engines' code side by side, what differs, the answer, the timing. */
+  :root {
+    --bg: #f3f4f6;
+    --surface: #ffffff;
+    --ink: #151920;
+    --muted: #5a6271;
+    --line: #dcdfe5;
+    --code-bg: #f7f8fa;
+    --code-ink: #232833;
+    --kw: #7c3aed;
+    --fn: #0e6ba8;
+    --str: #a1450c;
+    --num: #a1450c;
+    --lbl: #0f766e;
+    --neo: #0f766e;
+    --mem: #c2410c;
+    --sql: #3451c6;
+    --good: #15803d;
+    --good-bg: #e8f5ec;
+    --tint: #eef0f3;
+    --font-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+    --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1116; --surface: #161a21; --ink: #e6e9ef; --muted: #9aa2b1; --line: #2a303b;
+      --code-bg: #11151b; --code-ink: #d8dce4; --kw: #c4a5ff; --fn: #7cc4f5; --str: #f2a36b; --num: #f2a36b;
+      --lbl: #5eead4; --neo: #2dd4bf; --mem: #fb923c; --sql: #93a8ff; --good: #4ade80; --good-bg: #13261b;
+      --tint: #1c212a; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1116; --surface: #161a21; --ink: #e6e9ef; --muted: #9aa2b1; --line: #2a303b;
+    --code-bg: #11151b; --code-ink: #d8dce4; --kw: #c4a5ff; --fn: #7cc4f5; --str: #f2a36b; --num: #f2a36b;
+    --lbl: #5eead4; --neo: #2dd4bf; --mem: #fb923c; --sql: #93a8ff; --good: #4ade80; --good-bg: #13261b;
+    --tint: #1c212a; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 32px 64px;
+  }
+  .shell { max-width: 1320px; margin: 0 auto; display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 40px; }
+  @media (max-width: 960px) { .shell { grid-template-columns: minmax(0, 1fr); gap: 24px; } }
+
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+  h1 { font-size: clamp(30px, 4.4vw, 46px); font-weight: 700; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(22px, 2.6vw, 28px); font-weight: 700; letter-spacing: -0.01em; }
+  h3 { font-size: 15px; font-weight: 700; }
+  p { margin: 0; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--sql); outline-offset: 2px; border-radius: 4px; }
+  .num { font-variant-numeric: tabular-nums; }
+  .eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+  /* index */
+  nav.index { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; display: grid; gap: 4px; }
+  nav.index .eyebrow { margin-bottom: 8px; }
+  nav.index a { display: grid; grid-template-columns: 30px 1fr; gap: 6px; padding: 6px 8px; border-radius: 6px; text-decoration: none; font-size: 14px; line-height: 1.3; color: var(--muted); }
+  nav.index a b { font-family: var(--font-mono); font-weight: 600; color: var(--ink); font-size: 12px; padding-top: 1px; }
+  nav.index a:hover { background: var(--tint); color: var(--ink); }
+  nav.index .tier { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 10px 0 2px 8px; }
+  @media (max-width: 960px) {
+    nav.index { position: static; display: flex; overflow-x: auto; gap: 6px; padding-bottom: 4px; }
+    nav.index .eyebrow, nav.index .tier { display: none; }
+    nav.index a { flex: 0 0 auto; grid-template-columns: auto auto; background: var(--surface); border: 1px solid var(--line); }
+  }
+
+  main { display: grid; gap: 56px; min-width: 0; }
+
+  /* header */
+  header.intro { display: grid; gap: 18px; }
+  header.intro .lede { font-size: 18px; color: var(--muted); max-width: 68ch; }
+  .facts { display: flex; flex-wrap: wrap; gap: 10px 28px; padding-top: 6px; }
+  .facts div { display: grid; }
+  .facts strong { font-family: var(--font-display); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .facts span { font-size: 13px; color: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+  .dot.neo4j { background: var(--neo); } .dot.memgraph { background: var(--mem); } .dot.mysql { background: var(--sql); }
+
+  /* the two parts */
+  .thesis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 6px; }
+  @media (max-width: 760px) { .thesis { grid-template-columns: minmax(0, 1fr); } }
+  .thesis .panel { padding: 16px 18px; display: grid; gap: 8px; align-content: start; }
+  .thesis h3 { font-size: 19px; }
+  .thesis p { font-size: 15px; color: var(--muted); }
+  .tally { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
+  .tally span { display: inline-flex; align-items: center; gap: 6px; }
+  .tally strong { font-variant-numeric: tabular-nums; }
+  .partno { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .part-head { display: grid; gap: 8px; padding-top: 8px; border-top: 2px solid var(--ink); }
+  .part-head h2 { font-size: clamp(26px, 3.2vw, 34px); }
+  .part-head p { color: var(--muted); max-width: 70ch; font-size: 17px; }
+  table.glance tr.part td { background: var(--tint); font-weight: 600; font-size: 13px; padding: 7px 12px; }
+
+  /* overview */
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .overview { display: grid; gap: 14px; }
+  .table-wrap { overflow-x: auto; }
+  table.glance { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 640px; }
+  table.glance th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  table.glance td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  table.glance tr:last-child td { border-bottom: 0; }
+  table.glance td.q a { text-decoration: none; display: grid; }
+  table.glance td.q small { color: var(--muted); font-size: 12px; }
+  table.glance td.t { width: 22%; }
+  .cell { display: grid; gap: 4px; }
+  .cell .v { font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: 13px; }
+  .cell.best .v { font-weight: 600; }
+  .cell.best .v::after { content: " fastest"; font-family: var(--font-body); font-size: 11px; color: var(--good); font-weight: 600; margin-left: 4px; }
+  .mini { height: 5px; background: var(--tint); border-radius: 3px; overflow: hidden; }
+  .mini i { display: block; height: 100%; border-radius: 3px; }
+  .note { font-size: 13px; color: var(--muted); }
+
+  /* query sections */
+  section.query { display: grid; gap: 18px; scroll-margin-top: 20px; }
+  .qhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+  .qid { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--muted); }
+  .level { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .problem { font-size: 18px; max-width: 72ch; border-left: 3px solid var(--ink); padding-left: 14px; }
+  .problem b { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: block; font-weight: 600; margin-bottom: 2px; }
+
+  .codes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 1240px) { .codes { grid-template-columns: minmax(0, 1fr); } }
+  .code { display: grid; grid-template-rows: auto 1fr; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--code-bg); overflow: hidden; }
+  .code header { display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
+  .code header .name { font-weight: 600; font-size: 14px; }
+  .code header .lang { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+  .code header .same { font-size: 11px; font-weight: 600; color: var(--good); background: var(--good-bg); padding: 2px 7px; border-radius: 999px; }
+  .code header .differs { font-size: 11px; font-weight: 600; color: var(--mem); border: 1px solid currentColor; padding: 1px 7px; border-radius: 999px; }
+  .code header button { margin-left: auto; font: 600 12px var(--font-body); color: var(--ink); background: var(--tint); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  .code header button:hover { border-color: var(--muted); }
+  .code pre { margin: 0; padding: 12px 14px; overflow-x: auto; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; color: var(--code-ink); tab-size: 2; }
+  .code .bar { height: 3px; }
+  .k { color: var(--kw); font-weight: 600; } .f { color: var(--fn); } .s { color: var(--str); } .n { color: var(--num); } .l { color: var(--lbl); }
+
+  .split { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; }
+  @media (max-width: 1100px) { .split { grid-template-columns: minmax(0, 1fr); } }
+  .box { padding: 16px 18px; display: grid; gap: 10px; align-content: start; }
+  .box ul { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
+  .box li { max-width: 70ch; }
+
+  .answer { display: grid; gap: 8px; }
+  .agree { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--good); }
+  .agree.no { color: var(--mem); }
+  table.res { border-collapse: collapse; font-size: 13px; width: 100%; }
+  table.res th { text-align: left; font-family: var(--font-mono); font-weight: 600; font-size: 11px; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  table.res td { padding: 6px 8px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; vertical-align: top; }
+  table.res tr:last-child td { border-bottom: 0; }
+  td.list { color: var(--muted); min-width: 220px; }
+  .chain { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .chain span { background: var(--tint); border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+  .chain span.end { background: var(--good-bg); color: var(--ink); font-weight: 600; }
+  .chain i { font-style: normal; color: var(--muted); }
+
+  .perf svg { width: 100%; height: auto; display: block; }
+  .perf .axis { fill: var(--muted); font: 11px var(--font-mono); }
+  .perf .grid { stroke: var(--line); }
+  .perf .lab { fill: var(--ink); font: 600 13px var(--font-body); }
+  .perf .val { fill: var(--ink); font: 12px var(--font-mono); }
+  .verdict { font-size: 14px; }
+  .verdict strong { font-weight: 600; }
+  .caveat { font-size: 13px; color: var(--muted); }
+
+  /* method */
+  .method { display: grid; gap: 14px; }
+  .method .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 760px) { .method .cols { grid-template-columns: minmax(0, 1fr); } }
+  .method ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 15px; }
+  .method code, .box code { font-family: var(--font-mono); font-size: 0.88em; background: var(--tint); padding: 1px 5px; border-radius: 4px; }
+  /* measurements */
+  .env { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 760px) { .env { grid-template-columns: minmax(0, 1fr); } }
+  dl.kv { margin: 0; display: grid; grid-template-columns: minmax(110px, auto) minmax(0, 1fr); gap: 6px 16px; font-size: 14px; }
+  dl.kv dt { color: var(--muted); }
+  dl.kv dd { margin: 0; font-family: var(--font-mono); font-size: 13px; overflow-wrap: anywhere; }
+  table.cfg, table.runs { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.cfg th, table.runs th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  table.cfg td, table.runs td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.cfg td.v { font-family: var(--font-mono); font-size: 12.5px; white-space: nowrap; }
+  table.cfg tr.changed td.v { color: var(--mem); font-weight: 600; }
+  table.runs { min-width: 720px; font-variant-numeric: tabular-nums; }
+  table.runs td.rt { font-family: var(--font-mono); font-size: 12.5px; text-align: right; white-space: nowrap; }
+  table.runs th.rt { text-align: right; }
+  table.runs td.avg { font-weight: 600; }
+  table.runs tr.first td { border-top: 2px solid var(--line); }
+  table.runs td.qcell { font-weight: 600; white-space: nowrap; }
+  .run { font-family: var(--font-mono); font-size: 12.5px; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; white-space: pre; }
+
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="shell">
+  <nav class="index" id="index" aria-label="Queries"></nav>
+  <main>
+    <header class="intro">
+      <div class="eyebrow">DBMS group project · Phase 2 · Team 6</div>
+      <h1>Fraud detection: tables or graphs?</h1>
+      <p class="lede">The same synthetic fraud dataset, loaded into Neo4j, Memgraph and MySQL, asked thirteen questions in two parts. Part 1 asks about records: fetch, filter, total, rank. Part 2 asks about the links between records, which is where fraud shows up. For each question: the problem, the query in each engine, what changes between them, the answer, and how long it took.</p>
+      <div class="facts" id="facts"></div>
+      <div class="legend">
+        <span><i class="dot neo4j"></i>Neo4j 2026.09 · Cypher</span>
+        <span><i class="dot memgraph"></i>Memgraph (MAGE) · Cypher dialect</span>
+        <span><i class="dot mysql"></i>MySQL 8.4 · SQL</span>
+      </div>
+      <div class="thesis" id="thesis"></div>
+    </header>
+
+    <section class="overview" id="overview" aria-labelledby="glance-h">
+      <h2 id="glance-h">At a glance</h2>
+      <div class="panel table-wrap"><table class="glance" id="glance"></table></div>
+      <p class="note" id="glance-note"></p>
+    </section>
+
+    <div id="queries" style="display: grid; gap: 64px;"></div>
+
+    <section class="method" id="measurements" aria-labelledby="meas-h">
+      <h2 id="meas-h">Performance measurements</h2>
+      <p class="note" id="meas-intro" style="max-width:80ch"></p>
+      <div class="env">
+        <div class="panel box"><h3>Hardware</h3><dl class="kv" id="env-hw"></dl></div>
+        <div class="panel box"><h3>Software versions</h3><dl class="kv" id="env-sw"></dl></div>
+      </div>
+      <div class="panel box">
+        <h3>Configuration: what we changed, what we left alone, and why</h3>
+        <div class="table-wrap"><table class="cfg" id="env-cfg"></table></div>
+      </div>
+      <div class="panel box">
+        <h3>Individual runtimes (ms) with average and median</h3>
+        <div class="table-wrap"><table class="runs" id="runs"></table></div>
+        <p class="note" id="runs-note"></p>
+      </div>
+    </section>
+
+    <section class="method" id="method" aria-labelledby="method-h">
+      <h2 id="method-h">How this was measured</h2>
+      <div class="cols">
+        <div class="panel box">
+          <h3>Method</h3>
+          <ul id="method-list"></ul>
+        </div>
+        <div class="panel box">
+          <h3>Read the numbers with these in mind</h3>
+          <ul>
+            <li>Memgraph runs in Docker inside a Colima VM (4 CPUs, 8 GiB) and is reached through a forwarded port. Neo4j and MySQL run natively on macOS. That setup costs Memgraph something on every query.</li>
+            <li>Every engine runs its default configuration, with the indexes created by the loaders. Nothing was tuned per query.</li>
+            <li>MySQL's buffer pool was raised from the 128 MB default to 2 GB, so the whole 560 MB transactions table and its indexes sit in memory, as the graph engines' data does.</li>
+            <li>G4 on MySQL uses <code>idx_tx_client</code> and then reads each matching row back from the table to check <code>type</code> and <code>global_step</code>. A covering index on <code>(client_id, type, global_step, to_client_id)</code> would very likely narrow the gap.</li>
+            <li>One laptop, warm caches. These numbers compare query shapes on this machine; they are not a general benchmark.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="panel box">
+        <h3>Run it again</h3>
+        <div class="run">./start-graph-dbs.sh --no-open
+.venv/bin/python presentation/benchmark.py      # times all 13 queries (3+ runs each), checks the answers agree, records versions
+.venv/bin/python presentation/benchmark.py --env-only   # only refresh hardware, versions and settings
+.venv/bin/python presentation/build_page.py     # rebuilds this page from results.json</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const DATA = /*__RESULTS__*/null;
+const ENGINES = [
+  { key: "neo4j", name: "Neo4j", lang: "Cypher", color: "var(--neo)" },
+  { key: "memgraph", name: "Memgraph", lang: "Cypher (Memgraph)", color: "var(--mem)" },
+  { key: "mysql", name: "MySQL", lang: "SQL", color: "var(--sql)" },
+];
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmtMs = ms => ms < 10 ? `${ms.toFixed(1)} ms` : ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(2)} s`;
+const fmtVal = v => {
+  if (typeof v === "number") return Number.isInteger(v) ? v.toLocaleString("en-US") : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return esc(v);
+};
+
+// --- syntax highlighting for Cypher and SQL
+const KEYWORDS = new Set(("MATCH OPTIONAL WHERE RETURN WITH ORDER BY LIMIT AS AND OR NOT DISTINCT CASE WHEN THEN ELSE END IN " +
+  "SELECT FROM JOIN ON GROUP HAVING UNION ALL RECURSIVE DESC ASC IS NULL TRUE FALSE BFS SEPARATOR CHAR").split(" "));
+function highlight(src) {
+  const re = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\b\d+(?:\.\d+)?\b)|(:[A-Za-z_]\w*)|([A-Za-z_]\w*)|([\s\S])/g;
+  let out = "", m;
+  while ((m = re.exec(src))) {
+    if (m[1]) out += `<span class="s">${esc(m[1])}</span>`;
+    else if (m[2]) out += `<span class="n">${m[2]}</span>`;
+    else if (m[3]) out += `:<span class="l">${esc(m[3].slice(1))}</span>`;
+    else if (m[4]) {
+      const w = m[4];
+      if (KEYWORDS.has(w.toUpperCase()) && (w === w.toUpperCase() || w === "true" || w === "false")) out += `<span class="k">${w}</span>`;
+      else if (src[re.lastIndex] === "(" || (src[re.lastIndex] === " " && src[re.lastIndex + 1] === "{" && w === "COUNT")) out += `<span class="f">${w}</span>`;
+      else out += esc(w);
+    } else out += esc(m[5]);
+  }
+  return out;
+}
+
+// --- log-scale timing chart
+const LOG_MIN = 0.1, LOG_MAX = 30000;
+const logPos = (ms, w) => (Math.log10(Math.max(ms, LOG_MIN) / LOG_MIN) / Math.log10(LOG_MAX / LOG_MIN)) * w;
+function perfChart(t) {
+  const W = 640, left = 84, right = 78, plotW = W - left - right, rowH = 30, top = 8, H = top + rowH * 3 + 26;
+  const ticks = [[1, "1 ms"], [10, "10 ms"], [100, "100 ms"], [1000, "1 s"], [10000, "10 s"]];
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Median time per engine, log scale">`;
+  for (const [v, lab] of ticks) {
+    const x = left + logPos(v, plotW);
+    s += `<line class="grid" x1="${x}" x2="${x}" y1="${top - 4}" y2="${top + rowH * 3}"/>`;
+    s += `<text class="axis" x="${x}" y="${H - 6}" text-anchor="middle">${lab}</text>`;
+  }
+  ENGINES.forEach((e, i) => {
+    const ms = t[e.key].median, y = top + i * rowH, w = Math.max(2, logPos(ms, plotW));
+    s += `<text class="lab" x="0" y="${y + 19}">${e.name}</text>`;
+    s += `<rect x="${left}" y="${y + 6}" width="${w}" height="18" rx="3" fill="${e.color}"/>`;
+    s += `<text class="val" x="${left + w + 8}" y="${y + 19}">${fmtMs(ms)}</text>`;
+  });
+  return s + "</svg>";
+}
+
+function verdict(t) {
+  const sorted = ENGINES.map(e => ({ ...e, ms: t[e.key].median })).sort((a, b) => a.ms - b.ms);
+  const [best, , worst] = sorted;
+  const ratio = worst.ms / best.ms;
+  if (ratio < 1.5) return `All three finish within 1.5× of each other (${fmtMs(best.ms)} to ${fmtMs(worst.ms)}).`;
+  const mid = sorted[1];
+  const r2 = mid.ms / best.ms;
+  return `<strong>${best.name}</strong> is fastest: ${r2 >= 1.5 ? `${r2.toFixed(r2 < 10 ? 1 : 0)}× faster than ${mid.name} and ` : ""}${ratio.toFixed(ratio < 10 ? 1 : 0)}× faster than ${worst.name}.`;
+}
+
+function resultTable(q) {
+  const r = q.results.neo4j;
+  const head = r.columns.map(c => `<th>${esc(c)}</th>`).join("");
+  const rows = r.rows.map(row => "<tr>" + row.map((v, i) => {
+    const col = r.columns[i];
+    if (Array.isArray(v) && col === "via_clients") {
+      const chips = v.map((n, j) => `<span class="${j === 0 || j === v.length - 1 ? "end" : ""}">${esc(n)}</span>`).join("<i>→</i>");
+      return `<td class="list"><div class="chain">${chips}</div></td>`;
+    }
+    if (Array.isArray(v)) {
+      const shown = v.slice(0, 5).map(esc).join(", ");
+      return `<td class="list">${shown}${v.length > 5 ? ` … +${v.length - 5} more` : ""}</td>`;
+    }
+    if (col === "mule") return `<td>${v ? "yes" : "no"}</td>`;
+    return `<td class="num">${fmtVal(v)}</td>`;
+  }).join("") + "</tr>").join("");
+  return `<div class="table-wrap"><table class="res"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+const CAVEATS = {
+  G4: "MySQL's plan is an index nested-loop join: for each of the 2,302 fraudulent transfers it fetches every transaction of the receiving mule, then reads each row back to check its type and time. The graph engines follow the mule's PERFORMED relationships directly.",
+  G5: "Neo4j and Memgraph run the identical query text here, yet finish over 100× apart: the data model is the same, so the gap comes from each engine's query planner and execution. Choosing a graph model is not the same as choosing a fast engine.",
+  G6: "The slowest case for Memgraph here. The likely cause is expanding every variable-length path of up to 6 relationships before DISTINCT collapses them. MySQL's recursive CTE deduplicates (client, depth) pairs at every step, which prunes far earlier.",
+  G7: "MySQL computes only the distance. The graph engines also return the 17 people on the path, and still finish in milliseconds.",
+};
+
+function codePanel(q, e) {
+  const same = e.key === "memgraph" && q.memgraph_same;
+  const differs = e.key === "memgraph" && !q.memgraph_same;
+  const id = `${q.id}-${e.key}`;
+  return `<div class="code">
+    <header>
+      <i class="dot ${e.key}"></i><span class="name">${e.name}</span><span class="lang">${e.lang}</span>
+      ${same ? '<span class="same">Same as Neo4j</span>' : ""}${differs ? '<span class="differs">Differs from Neo4j</span>' : ""}
+      <button type="button" data-copy="${id}" aria-label="Copy ${e.name} query for ${q.id}">Copy</button>
+    </header>
+    <pre id="${id}">${highlight(q[e.key])}</pre>
+  </div>`;
+}
+
+function render() {
+  const qs = DATA.queries;
+  const allAgree = qs.every(q => q.answers_agree);
+
+  document.getElementById("facts").innerHTML = [
+    ["1,100,000", "nodes / rows in each engine"],
+    ["3,238,159", "relationships / foreign-key links"],
+    [`${qs.length}`, "questions, simple to expert"],
+    [`${qs.filter(q => q.answers_agree).length} / ${qs.length}`, "identical answers in all three"],
+  ].map(([n, l]) => `<div><strong>${n}</strong><span>${l}</span></div>`).join("");
+
+  const parts = DATA.parts;
+  const partNo = key => Object.keys(parts).indexOf(key) + 1;
+
+  // the two parts: who was fastest where, and how the best graph engine compares with MySQL
+  document.getElementById("thesis").innerHTML = Object.entries(parts).map(([key, p]) => {
+    const pq = qs.filter(q => q.part === key);
+    const wins = Object.fromEntries(ENGINES.map(e => [e.key, 0]));
+    let logSum = 0;
+    for (const q of pq) {
+      const t = q.timings_ms;
+      wins[ENGINES.reduce((a, e) => (t[e.key].median < t[a].median ? e.key : a), "neo4j")]++;
+      logSum += Math.log(t.mysql.median / Math.min(t.neo4j.median, t.memgraph.median));
+    }
+    const g = Math.exp(logSum / pq.length);
+    const cmp = g >= 1.5 ? `the faster graph engine beats MySQL by ${g.toFixed(g < 10 ? 1 : 0)}× on a typical question`
+      : g <= 1 / 1.5 ? `MySQL beats the faster graph engine by ${(1 / g).toFixed(1)}× on a typical question`
+      : "MySQL and the faster graph engine are within 1.5× of each other on a typical question";
+    return `<div class="panel">
+      <span class="partno">Part ${partNo(key)} · ${pq[0].id}–${pq[pq.length - 1].id}</span>
+      <h3>${esc(p.title)}</h3>
+      <p>${esc(p.blurb)}</p>
+      <div class="tally">Fastest on: ${ENGINES.map(e => `<span><i class="dot ${e.key}"></i>${e.name} <strong>${wins[e.key]}</strong></span>`).join("")}</div>
+      <p>Measured: ${cmp} (geometric mean).</p>
+    </div>`;
+  }).join("");
+
+  // index
+  let nav = '<div class="eyebrow">Queries</div>', tier = "";
+  for (const q of qs) {
+    if (q.part !== tier) { tier = q.part; nav += `<div class="tier">Part ${partNo(tier)} · ${esc(parts[tier].title.replace("Questions ", ""))}</div>`; }
+    nav += `<a href="#${q.id.toLowerCase()}"><b>${q.id}</b><span>${esc(q.title)}</span></a>`;
+  }
+  nav += `<div class="tier">More</div><a href="#measurements"><b>·</b><span>Runtimes and setup</span></a><a href="#method"><b>·</b><span>How it was measured</span></a>`;
+  document.getElementById("index").innerHTML = nav;
+
+  // at a glance
+  let g = `<thead><tr><th>Question</th><th>Level</th>${ENGINES.map(e => `<th><i class="dot ${e.key}"></i> ${e.name}</th>`).join("")}</tr></thead><tbody>`;
+  let gpart = "";
+  for (const q of qs) {
+    if (q.part !== gpart) { gpart = q.part; g += `<tr class="part"><td colspan="5">Part ${partNo(gpart)} · ${esc(parts[gpart].title)}</td></tr>`; }
+    const best = Math.min(...ENGINES.map(e => q.timings_ms[e.key].median));
+    g += `<tr><td class="q"><a href="#${q.id.toLowerCase()}"><span><b class="qid">${q.id}</b> ${esc(q.title)}</span></a></td><td><span class="level">${q.level}</span></td>`;
+    for (const e of ENGINES) {
+      const ms = q.timings_ms[e.key].median;
+      g += `<td class="t"><div class="cell ${ms === best ? "best" : ""}"><span class="v">${fmtMs(ms)}</span>
+        <div class="mini"><i style="width:${(logPos(ms, 100)).toFixed(1)}%;background:${e.color}"></i></div></div></td>`;
+    }
+    g += "</tr>";
+  }
+  document.getElementById("glance").innerHTML = g + "</tbody>";
+  document.getElementById("glance-note").textContent =
+    `Median of ${DATA.runs} warm runs per engine (${DATA.slow_runs} when one run takes over ${DATA.slow_ms / 1000} s), measured ${DATA.generated}. Every individual run, with its average, is listed under Performance measurements. Bars use a log scale (0.1 ms to 30 s), so each step is 10× slower. ` +
+    (allAgree ? "All three engines returned the same answer to every question." : "Some answers differ; see the flagged questions.");
+
+  // per-query sections
+  let qpart = "";
+  document.getElementById("queries").innerHTML = qs.map(q => {
+    let head = "";
+    if (q.part !== qpart) {
+      qpart = q.part;
+      head = `<div class="part-head" id="part${partNo(qpart)}"><span class="partno">Part ${partNo(qpart)}</span><h2>${esc(parts[qpart].title)}</h2><p>${esc(parts[qpart].blurb)}</p></div>`;
+    }
+    return head + `
+    <section class="query" id="${q.id.toLowerCase()}" aria-labelledby="${q.id}-h">
+      <div class="qhead"><span class="qid">${q.id}</span><h2 id="${q.id}-h">${esc(q.title)}</h2><span class="level">${q.level}</span></div>
+      <p class="problem"><b>The problem</b>${esc(q.problem)}</p>
+      <div class="codes">${ENGINES.map(e => codePanel(q, e)).join("")}</div>
+      <div class="split">
+        <div class="panel box">
+          <h3>What changes between the queries</h3>
+          <ul>${q.differences.map(d => `<li>${esc(d)}</li>`).join("")}</ul>
+        </div>
+        <div class="panel box answer">
+          <h3>The answer</h3>
+          <span class="agree ${q.answers_agree ? "" : "no"}">${q.answers_agree ? "✓ Same answer from all three engines" : "✗ Engines disagree"}</span>
+          ${resultTable(q)}
+        </div>
+      </div>
+      <div class="panel box perf">
+        <h3>Performance · median of warm runs (${[...new Set(ENGINES.map(e => q.timings_ms[e.key].runs))].join(" or ")} per engine)</h3>
+        ${perfChart(q.timings_ms)}
+        <p class="verdict">${verdict(q.timings_ms)}</p>
+        ${CAVEATS[q.id] ? `<p class="caveat">${esc(CAVEATS[q.id])}</p>` : ""}
+      </div>
+    </section>`;
+  }).join("");
+
+  document.getElementById("method-list").innerHTML = [
+    `Each query ran once to warm up (not counted), then ${DATA.runs} timed runs per engine (${DATA.slow_runs} if the warm-up took over ${DATA.slow_ms / 1000} s, to keep the slowest queries to minutes). Every run is reported, with the average and the median; charts use the median because a single slow run moves an average more.`,
+    "External timing: Python's time.perf_counter() around execute + fetch of every row, over one open connection per engine (official neo4j driver for Neo4j and Memgraph, PyMySQL for MySQL). We timed from the client rather than using each engine's own profiler (PROFILE, EXPLAIN ANALYZE) because those report different things in each system; client time is the one measure all three share.",
+    "The answers are compared across engines automatically: floats rounded to 2 decimals, booleans as 0/1. G7 compares the hop count, since MySQL does not return the path.",
+    `Machine: ${esc(DATA.machine)}. Dataset: fraud_1_1m (seed 42), identical in all three engines, verified with 25 property and edge checksums.`,
+  ].map(x => `<li>${x}</li>`).join("");
+
+  renderMeasurements(qs);
+
+  document.addEventListener("click", ev => {
+    const btn = ev.target.closest("button[data-copy]");
+    if (!btn) return;
+    const pre = document.getElementById(btn.dataset.copy);
+    const done = label => { btn.textContent = label; setTimeout(() => (btn.textContent = "Copy"), 1600); };
+    const selectIt = () => { const r = document.createRange(); r.selectNodeContents(pre); const s = getSelection(); s.removeAllRanges(); s.addRange(r); done("Selected"); };
+    try {
+      navigator.clipboard.writeText(pre.textContent).then(() => done("Copied"), selectIt);
+    } catch (e) { selectIt(); }
+  });
+
+  if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
+}
+
+
+// ---- performance measurements: environment, configuration, every run
+const CONFIG_NOTES = [
+  // [engine label, key in env.config, setting, default, why]
+  ["MySQL", "mysql", "innodb_buffer_pool_size", "134217728 (128 MiB)", "Raised to 2 GiB so the 560 MB transactions table and its indexes stay in memory, as the graph engines keep theirs. With the default, MySQL would be timed partly on disk reads."],
+  ["MySQL", "mysql", "cte_max_recursion_depth", "1000", "Left at the default; the recursive queries (G6, G7) stop at depth 3 and 20."],
+  ["MySQL", "mysql", "join_buffer_size", "262144 (256 KiB)", "Left at the default. No per-query tuning."],
+  ["Neo4j", "neo4j", "server.memory.heap.max_size", "auto-sized by Neo4j", "Left at the default (Homebrew install, nothing set in neo4j.conf)."],
+  ["Neo4j", "neo4j", "server.memory.pagecache.size", "auto-sized by Neo4j", "Left at the default; the 1.1 M-node store fits in the automatic page cache."],
+  ["Memgraph", "memgraph", "storage_mode", "IN_MEMORY_TRANSACTIONAL", "Left at the default: Memgraph keeps the whole graph in RAM."],
+  ["Colima VM", "colima_vm", "cpus", "2", "Set to 4 when the VM was created, so Memgraph is not starved of CPU inside Docker."],
+  ["Colima VM", "colima_vm", "memory", "2 GiB", "Set to 8 GiB so the in-memory graph (about 1.1 M nodes, 3.2 M relationships) fits with room to spare."],
+];
+const fmtRun = ms => ms == null ? "–" : ms < 10 ? ms.toFixed(2) : ms < 1000 ? ms.toFixed(1) : Math.round(ms).toLocaleString("en-US");
+const fmtBytes = v => (/^\d+$/.test(String(v)) && +v >= 1024 * 1024) ? `${v} (${(+v / 2 ** 30 >= 1 ? (+v / 2 ** 30).toFixed(0) + " GiB" : (+v / 2 ** 20).toFixed(0) + " MiB")})` : String(v);
+
+function renderMeasurements(qs) {
+  const env = DATA.env;
+  const kv = obj => Object.entries(obj).map(([k, v]) => `<dt>${esc(k.replace(/_/g, " "))}</dt><dd>${esc(v)}</dd>`).join("");
+  const hasTimes = qs.every(q => ENGINES.every(e => Array.isArray(q.timings_ms[e.key].times)));
+
+  document.getElementById("meas-intro").textContent =
+    `Every query was run on every system at least ${Math.min(DATA.runs, DATA.slow_runs)} times after one warm-up run. ` +
+    `Below: the machine, the exact versions, each configuration setting that matters and why it is set that way, then every individual runtime with its average. Measured ${DATA.generated}.`;
+
+  if (env) {
+    const hw = env.hardware || {};
+    document.getElementById("env-hw").innerHTML = kv({ model: hw.model, cpu: hw.cpu, cores: hw.cores, memory: hw.memory, os: hw.os, arch: hw.arch });
+    const sw = env.software || {};
+    document.getElementById("env-sw").innerHTML = kv({
+      neo4j: sw.neo4j, memgraph: `${sw.memgraph}${sw.memgraph_image ? ` · image ${sw.memgraph_image}` : ""}`, mysql: sw.mysql,
+      "colima / docker": `${sw.colima} · Docker ${sw.docker}`, python: sw.python,
+      drivers: `neo4j ${sw.neo4j_driver} · PyMySQL ${sw.pymysql}`,
+    });
+    let c = "<thead><tr><th>System</th><th>Setting</th><th>Value used</th><th>Default</th><th>Why</th></tr></thead><tbody>";
+    for (const [sys, key, name, def, why] of CONFIG_NOTES) {
+      const block = (env.config || {})[key];
+      const val = block && typeof block === "object" ? block[name] : undefined;
+      const shown = val === undefined ? "not reported" : fmtBytes(val);
+      const changed = /Raised|Set to/.test(why);
+      c += `<tr class="${changed ? "changed" : ""}"><td>${sys}</td><td class="v">${esc(name)}</td><td class="v">${esc(shown)}</td><td class="v">${esc(def)}</td><td>${esc(why)}</td></tr>`;
+    }
+    c += `<tr><td>All</td><td class="v">indexes</td><td class="v">from the loaders</td><td class="v">–</td><td>Only the indexes and constraints each loader creates (ids, SSN/email/phone, foreign keys). Nothing added for individual queries; we report the shapes, not a tuned best case.</td></tr>`;
+    document.getElementById("env-cfg").innerHTML = c + "</tbody>";
+  } else {
+    document.getElementById("env-hw").innerHTML = kv({ machine: DATA.machine, note: "run benchmark.py --env-only to record details" });
+    document.getElementById("env-sw").innerHTML = kv({ note: "run benchmark.py --env-only to record versions" });
+    document.getElementById("env-cfg").innerHTML = "<tbody><tr><td>Run benchmark.py --env-only to record the settings.</td></tr></tbody>";
+  }
+
+  const maxRuns = Math.max(...qs.flatMap(q => ENGINES.map(e => (q.timings_ms[e.key].times || []).length)), 3);
+  let t = `<thead><tr><th>Query</th><th>System</th>${Array.from({ length: maxRuns }, (_, i) => `<th class="rt">Run ${i + 1}</th>`).join("")}<th class="rt">Average</th><th class="rt">Median</th></tr></thead><tbody>`;
+  for (const q of qs) {
+    ENGINES.forEach((e, i) => {
+      const tm = q.timings_ms[e.key], times = tm.times || [];
+      const avg = tm.mean ?? (times.length ? times.reduce((a, b) => a + b, 0) / times.length : null);
+      t += `<tr class="${i === 0 ? "first" : ""}">${i === 0 ? `<td class="qcell" rowspan="3"><a href="#${q.id.toLowerCase()}">${q.id}</a> <span class="note">${esc(q.title)}</span></td>` : ""}` +
+        `<td><i class="dot ${e.key}"></i> ${e.name}</td>` +
+        Array.from({ length: maxRuns }, (_, k) => `<td class="rt">${fmtRun(times[k])}</td>`).join("") +
+        `<td class="rt avg">${fmtRun(avg)}</td><td class="rt">${fmtRun(tm.median)}</td></tr>`;
+    });
+  }
+  document.getElementById("runs").innerHTML = t + "</tbody>";
+  document.getElementById("runs-note").textContent = hasTimes
+    ? `Times in milliseconds, client-side wall clock, warm-up excluded. A dash means that query had fewer runs (queries over ${DATA.slow_ms / 1000} s get ${DATA.slow_runs}).`
+    : "This results file predates per-run logging: run presentation/benchmark.py again to fill in every run and the average.";
+}
+
+if (DATA) render();
+else document.getElementById("queries").textContent = "No results embedded. Run presentation/build_page.py.";
+</script>

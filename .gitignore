@@ -1,0 +1,29 @@
+# Python
+.venv/
+__pycache__/
+
+# OS / tooling
+.DS_Store
+.claude/
+
+# Generated dataset (rebuild with: python3 scripts/generate_fraud_data.py --nodes 1100000 --out fraud_1_1m --schema fraud_1_1m)
+fraud_1_1m/csv/
+fraud_1_1m/*.cypherl.gz
+
+# LaTeX build output
+*.aux
+*.log
+*.out
+*.toc
+*.bbl
+*.blg
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Submission bundles
+*.zip
+
+# Course material (not ours to publish)
+Group Research Project: Phase 1.pdf
+whatgoesaround-sigmodrec2024.pdf

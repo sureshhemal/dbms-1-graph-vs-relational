@@ -1,0 +1,573 @@
+<title>Fraud Detection: Tables or Graphs</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  /* Layout: case-file reading column with a sticky query index on wide screens; each query is one
+     section with the problem, three engines' code side by side, what differs, the answer, the timing. */
+  :root {
+    --bg: #f3f4f6;
+    --surface: #ffffff;
+    --ink: #151920;
+    --muted: #5a6271;
+    --line: #dcdfe5;
+    --code-bg: #f7f8fa;
+    --code-ink: #232833;
+    --kw: #7c3aed;
+    --fn: #0e6ba8;
+    --str: #a1450c;
+    --num: #a1450c;
+    --lbl: #0f766e;
+    --neo: #0f766e;
+    --mem: #c2410c;
+    --sql: #3451c6;
+    --good: #15803d;
+    --good-bg: #e8f5ec;
+    --tint: #eef0f3;
+    --font-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+    --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1116; --surface: #161a21; --ink: #e6e9ef; --muted: #9aa2b1; --line: #2a303b;
+      --code-bg: #11151b; --code-ink: #d8dce4; --kw: #c4a5ff; --fn: #7cc4f5; --str: #f2a36b; --num: #f2a36b;
+      --lbl: #5eead4; --neo: #2dd4bf; --mem: #fb923c; --sql: #93a8ff; --good: #4ade80; --good-bg: #13261b;
+      --tint: #1c212a; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1116; --surface: #161a21; --ink: #e6e9ef; --muted: #9aa2b1; --line: #2a303b;
+    --code-bg: #11151b; --code-ink: #d8dce4; --kw: #c4a5ff; --fn: #7cc4f5; --str: #f2a36b; --num: #f2a36b;
+    --lbl: #5eead4; --neo: #2dd4bf; --mem: #fb923c; --sql: #93a8ff; --good: #4ade80; --good-bg: #13261b;
+    --tint: #1c212a; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 32px 64px;
+  }
+  .shell { max-width: 1320px; margin: 0 auto; display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 40px; }
+  @media (max-width: 960px) { .shell { grid-template-columns: minmax(0, 1fr); gap: 24px; } }
+
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+  h1 { font-size: clamp(30px, 4.4vw, 46px); font-weight: 700; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(22px, 2.6vw, 28px); font-weight: 700; letter-spacing: -0.01em; }
+  h3 { font-size: 15px; font-weight: 700; }
+  p { margin: 0; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--sql); outline-offset: 2px; border-radius: 4px; }
+  .num { font-variant-numeric: tabular-nums; }
+  .eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+  /* index */
+  nav.index { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; display: grid; gap: 4px; }
+  nav.index .eyebrow { margin-bottom: 8px; }
+  nav.index a { display: grid; grid-template-columns: 30px 1fr; gap: 6px; padding: 6px 8px; border-radius: 6px; text-decoration: none; font-size: 14px; line-height: 1.3; color: var(--muted); }
+  nav.index a b { font-family: var(--font-mono); font-weight: 600; color: var(--ink); font-size: 12px; padding-top: 1px; }
+  nav.index a:hover { background: var(--tint); color: var(--ink); }
+  nav.index .tier { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 10px 0 2px 8px; }
+  @media (max-width: 960px) {
+    nav.index { position: static; display: flex; overflow-x: auto; gap: 6px; padding-bottom: 4px; }
+    nav.index .eyebrow, nav.index .tier { display: none; }
+    nav.index a { flex: 0 0 auto; grid-template-columns: auto auto; background: var(--surface); border: 1px solid var(--line); }
+  }
+
+  main { display: grid; gap: 56px; min-width: 0; }
+
+  /* header */
+  header.intro { display: grid; gap: 18px; }
+  header.intro .lede { font-size: 18px; color: var(--muted); max-width: 68ch; }
+  .facts { display: flex; flex-wrap: wrap; gap: 10px 28px; padding-top: 6px; }
+  .facts div { display: grid; }
+  .facts strong { font-family: var(--font-display); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .facts span { font-size: 13px; color: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+  .dot.neo4j { background: var(--neo); } .dot.memgraph { background: var(--mem); } .dot.mysql { background: var(--sql); }
+
+  /* the two parts */
+  .thesis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 6px; }
+  @media (max-width: 760px) { .thesis { grid-template-columns: minmax(0, 1fr); } }
+  .thesis .panel { padding: 16px 18px; display: grid; gap: 8px; align-content: start; }
+  .thesis h3 { font-size: 19px; }
+  .thesis p { font-size: 15px; color: var(--muted); }
+  .tally { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
+  .tally span { display: inline-flex; align-items: center; gap: 6px; }
+  .tally strong { font-variant-numeric: tabular-nums; }
+  .partno { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .part-head { display: grid; gap: 8px; padding-top: 8px; border-top: 2px solid var(--ink); }
+  .part-head h2 { font-size: clamp(26px, 3.2vw, 34px); }
+  .part-head p { color: var(--muted); max-width: 70ch; font-size: 17px; }
+  table.glance tr.part td { background: var(--tint); font-weight: 600; font-size: 13px; padding: 7px 12px; }
+
+  /* overview */
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .overview { display: grid; gap: 14px; }
+  .table-wrap { overflow-x: auto; }
+  table.glance { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 640px; }
+  table.glance th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  table.glance td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  table.glance tr:last-child td { border-bottom: 0; }
+  table.glance td.q a { text-decoration: none; display: grid; }
+  table.glance td.q small { color: var(--muted); font-size: 12px; }
+  table.glance td.t { width: 22%; }
+  .cell { display: grid; gap: 4px; }
+  .cell .v { font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: 13px; }
+  .cell.best .v { font-weight: 600; }
+  .cell.best .v::after { content: " fastest"; font-family: var(--font-body); font-size: 11px; color: var(--good); font-weight: 600; margin-left: 4px; }
+  .mini { height: 5px; background: var(--tint); border-radius: 3px; overflow: hidden; }
+  .mini i { display: block; height: 100%; border-radius: 3px; }
+  .note { font-size: 13px; color: var(--muted); }
+
+  /* query sections */
+  section.query { display: grid; gap: 18px; scroll-margin-top: 20px; }
+  .qhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+  .qid { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--muted); }
+  .level { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .problem { font-size: 18px; max-width: 72ch; border-left: 3px solid var(--ink); padding-left: 14px; }
+  .problem b { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: block; font-weight: 600; margin-bottom: 2px; }
+
+  .codes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 1240px) { .codes { grid-template-columns: minmax(0, 1fr); } }
+  .code { display: grid; grid-template-rows: auto 1fr; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--code-bg); overflow: hidden; }
+  .code header { display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
+  .code header .name { font-weight: 600; font-size: 14px; }
+  .code header .lang { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+  .code header .same { font-size: 11px; font-weight: 600; color: var(--good); background: var(--good-bg); padding: 2px 7px; border-radius: 999px; }
+  .code header .differs { font-size: 11px; font-weight: 600; color: var(--mem); border: 1px solid currentColor; padding: 1px 7px; border-radius: 999px; }
+  .code header button { margin-left: auto; font: 600 12px var(--font-body); color: var(--ink); background: var(--tint); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  .code header button:hover { border-color: var(--muted); }
+  .code pre { margin: 0; padding: 12px 14px; overflow-x: auto; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; color: var(--code-ink); tab-size: 2; }
+  .code .bar { height: 3px; }
+  .k { color: var(--kw); font-weight: 600; } .f { color: var(--fn); } .s { color: var(--str); } .n { color: var(--num); } .l { color: var(--lbl); }
+
+  .split { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; }
+  @media (max-width: 1100px) { .split { grid-template-columns: minmax(0, 1fr); } }
+  .box { padding: 16px 18px; display: grid; gap: 10px; align-content: start; }
+  .box ul { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
+  .box li { max-width: 70ch; }
+
+  .answer { display: grid; gap: 8px; }
+  .agree { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--good); }
+  .agree.no { color: var(--mem); }
+  table.res { border-collapse: collapse; font-size: 13px; width: 100%; }
+  table.res th { text-align: left; font-family: var(--font-mono); font-weight: 600; font-size: 11px; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  table.res td { padding: 6px 8px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; vertical-align: top; }
+  table.res tr:last-child td { border-bottom: 0; }
+  td.list { color: var(--muted); min-width: 220px; }
+  .chain { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .chain span { background: var(--tint); border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+  .chain span.end { background: var(--good-bg); color: var(--ink); font-weight: 600; }
+  .chain i { font-style: normal; color: var(--muted); }
+
+  .perf svg { width: 100%; height: auto; display: block; }
+  .perf .axis { fill: var(--muted); font: 11px var(--font-mono); }
+  .perf .grid { stroke: var(--line); }
+  .perf .lab { fill: var(--ink); font: 600 13px var(--font-body); }
+  .perf .val { fill: var(--ink); font: 12px var(--font-mono); }
+  .verdict { font-size: 14px; }
+  .verdict strong { font-weight: 600; }
+  .caveat { font-size: 13px; color: var(--muted); }
+
+  /* method */
+  .method { display: grid; gap: 14px; }
+  .method .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 760px) { .method .cols { grid-template-columns: minmax(0, 1fr); } }
+  .method ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 15px; }
+  .method code, .box code { font-family: var(--font-mono); font-size: 0.88em; background: var(--tint); padding: 1px 5px; border-radius: 4px; }
+  /* measurements */
+  .env { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 760px) { .env { grid-template-columns: minmax(0, 1fr); } }
+  dl.kv { margin: 0; display: grid; grid-template-columns: minmax(110px, auto) minmax(0, 1fr); gap: 6px 16px; font-size: 14px; }
+  dl.kv dt { color: var(--muted); }
+  dl.kv dd { margin: 0; font-family: var(--font-mono); font-size: 13px; overflow-wrap: anywhere; }
+  table.cfg, table.runs { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.cfg th, table.runs th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  table.cfg td, table.runs td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.cfg td.v { font-family: var(--font-mono); font-size: 12.5px; white-space: nowrap; }
+  table.cfg tr.changed td.v { color: var(--mem); font-weight: 600; }
+  table.runs { min-width: 720px; font-variant-numeric: tabular-nums; }
+  table.runs td.rt { font-family: var(--font-mono); font-size: 12.5px; text-align: right; white-space: nowrap; }
+  table.runs th.rt { text-align: right; }
+  table.runs td.avg { font-weight: 600; }
+  table.runs tr.first td { border-top: 2px solid var(--line); }
+  table.runs td.qcell { font-weight: 600; white-space: nowrap; }
+  .run { font-family: var(--font-mono); font-size: 12.5px; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; white-space: pre; }
+
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="shell">
+  <nav class="index" id="index" aria-label="Queries"></nav>
+  <main>
+    <header class="intro">
+      <div class="eyebrow">DBMS group project · Phase 2 · Team 6</div>
+      <h1>Fraud detection: tables or graphs?</h1>
+      <p class="lede">The same synthetic fraud dataset, loaded into Neo4j, Memgraph and MySQL, asked thirteen questions in two parts. Part 1 asks about records: fetch, filter, total, rank. Part 2 asks about the links between records, which is where fraud shows up. For each question: the problem, the query in each engine, what changes between them, the answer, and how long it took.</p>
+      <div class="facts" id="facts"></div>
+      <div class="legend">
+        <span><i class="dot neo4j"></i>Neo4j 2026.09 · Cypher</span>
+        <span><i class="dot memgraph"></i>Memgraph (MAGE) · Cypher dialect</span>
+        <span><i class="dot mysql"></i>MySQL 8.4 · SQL</span>
+      </div>
+      <div class="thesis" id="thesis"></div>
+    </header>
+
+    <section class="overview" id="overview" aria-labelledby="glance-h">
+      <h2 id="glance-h">At a glance</h2>
+      <div class="panel table-wrap"><table class="glance" id="glance"></table></div>
+      <p class="note" id="glance-note"></p>
+    </section>
+
+    <div id="queries" style="display: grid; gap: 64px;"></div>
+
+    <section class="method" id="measurements" aria-labelledby="meas-h">
+      <h2 id="meas-h">Performance measurements</h2>
+      <p class="note" id="meas-intro" style="max-width:80ch"></p>
+      <div class="env">
+        <div class="panel box"><h3>Hardware</h3><dl class="kv" id="env-hw"></dl></div>
+        <div class="panel box"><h3>Software versions</h3><dl class="kv" id="env-sw"></dl></div>
+      </div>
+      <div class="panel box">
+        <h3>Configuration: what we changed, what we left alone, and why</h3>
+        <div class="table-wrap"><table class="cfg" id="env-cfg"></table></div>
+      </div>
+      <div class="panel box">
+        <h3>Individual runtimes (ms) with average and median</h3>
+        <div class="table-wrap"><table class="runs" id="runs"></table></div>
+        <p class="note" id="runs-note"></p>
+      </div>
+    </section>
+
+    <section class="method" id="method" aria-labelledby="method-h">
+      <h2 id="method-h">How this was measured</h2>
+      <div class="cols">
+        <div class="panel box">
+          <h3>Method</h3>
+          <ul id="method-list"></ul>
+        </div>
+        <div class="panel box">
+          <h3>Read the numbers with these in mind</h3>
+          <ul>
+            <li>Memgraph runs in Docker inside a Colima VM (4 CPUs, 8 GiB) and is reached through a forwarded port. Neo4j and MySQL run natively on macOS. That setup costs Memgraph something on every query.</li>
+            <li>Every engine runs its default configuration, with the indexes created by the loaders. Nothing was tuned per query.</li>
+            <li>MySQL's buffer pool was raised from the 128 MB default to 2 GB, so the whole 560 MB transactions table and its indexes sit in memory, as the graph engines' data does.</li>
+            <li>G4 on MySQL uses <code>idx_tx_client</code> and then reads each matching row back from the table to check <code>type</code> and <code>global_step</code>. A covering index on <code>(client_id, type, global_step, to_client_id)</code> would very likely narrow the gap.</li>
+            <li>One laptop, warm caches. These numbers compare query shapes on this machine; they are not a general benchmark.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="panel box">
+        <h3>Run it again</h3>
+        <div class="run">./start-graph-dbs.sh --no-open
+.venv/bin/python presentation/benchmark.py      # times all 13 queries (3+ runs each), checks the answers agree, records versions
+.venv/bin/python presentation/benchmark.py --env-only   # only refresh hardware, versions and settings
+.venv/bin/python presentation/build_page.py     # rebuilds this page from results.json</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const DATA = {"generated": "2026-11-03 13:45", "runs": 5, "slow_runs": 3, "slow_ms": 5000, "machine": "Darwin arm64", "parts": {"records": {"title": "Questions about records", "blurb": "Fetch, filter, sort, total and rank rows. Each answer comes from the records themselves, with relationships at most one join away. SQL states these questions most directly; on speed, the engines stay within a few times of each other."}, "relationships": {"title": "Questions between records", "blurb": "Who is connected to whom, through what, and how far the money travels. The answer lives in the links between records, which is where fraud hides and where graph databases were built to look."}}, "queries": [{"id": "R1", "part": "records", "level": "Basic", "title": "Fetch one transaction", "problem": "Show transaction tx-500000: its type, amount, fraud flag, hour, who sent it and who received it.", "compare_cols": 7, "neo4j": "MATCH (c:Client)-[:PERFORMED]->(t:Transaction {id: \"tx-500000\"})-[:TO]->(x)\nRETURN t.id AS id, [l IN labels(t) WHERE l <> \"Transaction\"][0] AS type,\n       t.amount AS amount, t.fraud AS fraud, t.step AS step,\n       c.id AS sender, x.id AS receiver", "memgraph": "MATCH (c:Client)-[:PERFORMED]->(t:Transaction {id: \"tx-500000\"})-[:TO]->(x)\nRETURN t.id AS id, [l IN labels(t) WHERE l <> \"Transaction\"][0] AS type,\n       t.amount AS amount, t.fraud AS fraud, t.step AS step,\n       c.id AS sender, x.id AS receiver", "mysql": "SELECT id, type, amount, fraud, step,\n       client_id AS sender,\n       COALESCE(to_merchant_id, to_client_id, to_bank_id) AS receiver\nFROM transactions\nWHERE id = 'tx-500000'", "differences": ["In SQL the whole answer is one row: sender and receiver are just columns. The graph has to walk two relationships to find them, because who-sent-what is stored as edges.", "The type is a column in SQL but a second label in the graph, so Cypher has to pick it out of labels(t).", "All three are index lookups and finish in about a millisecond: for a single record, the model makes no practical difference."], "memgraph_same": true, "results": {"neo4j": {"columns": ["id", "type", "amount", "fraud", "step", "sender", "receiver"], "rows": [["tx-500000", "Payment", 7265.64, 0, 1110, "4000000000000016", "01-0000484"]]}, "memgraph": {"columns": ["id", "type", "amount", "fraud", "step", "sender", "receiver"], "rows": [["tx-500000", "Payment", 7265.64, 0, 1110, "4000000000000016", "01-0000484"]]}, "mysql": {"columns": ["id", "type", "amount", "fraud", "step", "sender", "receiver"], "rows": [["tx-500000", "Payment", 7265.64, 0, 1110, "4000000000000016", "01-0000484"]]}}, "timings_ms": {"neo4j": {"median": 4.7, "runs": 5, "mean": 5.4, "min": 3.5, "max": 9.6, "times": [9.62, 5.03, 4.3, 4.73, 3.48], "warmup": 203.74}, "memgraph": {"median": 1.0, "runs": 5, "mean": 1.2, "min": 0.5, "max": 2.5, "times": [2.5, 0.76, 0.95, 0.54, 1.1], "warmup": 28.42}, "mysql": {"median": 0.2, "runs": 5, "mean": 0.4, "min": 0.2, "max": 0.6, "times": [0.47, 0.65, 0.24, 0.21, 0.2], "warmup": 24.22}}, "answers_agree": true}, {"id": "R2", "part": "records", "level": "Basic", "title": "Ten largest transfers", "problem": "List the ten biggest transfers ever made, with their amount and fraud flag.", "compare_cols": 3, "neo4j": "MATCH (t:Transfer)\nRETURN t.id AS id, t.amount AS amount, t.fraud AS fraud\nORDER BY amount DESC\nLIMIT 10", "memgraph": "MATCH (t:Transfer)\nRETURN t.id AS id, t.amount AS amount, t.fraud AS fraud\nORDER BY amount DESC\nLIMIT 10", "mysql": "SELECT id, amount, fraud\nFROM transactions\nWHERE type = 'Transfer'\nORDER BY amount DESC\nLIMIT 10", "differences": ["Line for line the same query: filter, sort, limit. A label in Cypher plays the part of the WHERE type = ... filter.", "No relationships are involved, so the graph brings nothing extra here."], "memgraph_same": true, "results": {"neo4j": {"columns": ["id", "amount", "fraud"], "rows": [["tx-687485", 19848707.68, 0], ["tx-737713", 18899223.51, 1], ["tx-601211", 15582398.53, 0], ["tx-721194", 13900376.42, 0], ["tx-425093", 13216127.32, 0], ["tx-376114", 13006324.31, 0], ["tx-921042", 12748573.9, 0], ["tx-107341", 12456006.72, 0], ["tx-204487", 12377579.62, 0], ["tx-70791", 12258022.84, 0]]}, "memgraph": {"columns": ["id", "amount", "fraud"], "rows": [["tx-687485", 19848707.68, 0], ["tx-737713", 18899223.51, 1], ["tx-601211", 15582398.53, 0], ["tx-721194", 13900376.42, 0], ["tx-425093", 13216127.32, 0], ["tx-376114", 13006324.31, 0], ["tx-921042", 12748573.9, 0], ["tx-107341", 12456006.72, 0], ["tx-204487", 12377579.62, 0], ["tx-70791", 12258022.84, 0]]}, "mysql": {"columns": ["id", "amount", "fraud"], "rows": [["tx-687485", 19848707.68, 0], ["tx-737713", 18899223.51, 1], ["tx-601211", 15582398.53, 0], ["tx-721194", 13900376.42, 0], ["tx-425093", 13216127.32, 0], ["tx-376114", 13006324.31, 0], ["tx-921042", 12748573.9, 0], ["tx-107341", 12456006.72, 0], ["tx-204487", 12377579.62, 0], ["tx-70791", 12258022.84, 0]]}}, "timings_ms": {"neo4j": {"median": 22.5, "runs": 5, "mean": 30.5, "min": 17.6, "max": 69.6, "times": [24.23, 18.45, 69.61, 22.49, 17.57], "warmup": 166.43}, "memgraph": {"median": 76.4, "runs": 5, "mean": 89.3, "min": 71.3, "max": 142.9, "times": [142.86, 84.46, 71.62, 71.33, 76.41], "warmup": 1847.72}, "mysql": {"median": 123.6, "runs": 5, "mean": 124.4, "min": 121.4, "max": 131.2, "times": [131.21, 123.82, 123.65, 121.92, 121.43], "warmup": 661.85}}, "answers_agree": true}, {"id": "R3", "part": "records", "level": "Basic", "title": "Activity in a time window", "problem": "What happened between hour 1,000 and hour 1,010? Count and total the transactions of each type.", "compare_cols": 3, "neo4j": "MATCH (t:Transaction)\nWHERE t.step >= 1000 AND t.step <= 1010\nWITH [l IN labels(t) WHERE l <> \"Transaction\"][0] AS type, t\nRETURN type, count(*) AS txs, round(sum(t.amount)) AS total\nORDER BY type", "memgraph": "MATCH (t:Transaction)\nWHERE t.step >= 1000 AND t.step <= 1010\nWITH [l IN labels(t) WHERE l <> \"Transaction\"][0] AS type, t\nRETURN type, count(*) AS txs, round(sum(t.amount)) AS total\nORDER BY type", "mysql": "SELECT type, COUNT(*) AS txs, ROUND(SUM(amount)) AS total\nFROM transactions\nWHERE step BETWEEN 1000 AND 1010\nGROUP BY type\nORDER BY CAST(type AS CHAR)", "differences": ["SQL has BETWEEN and GROUP BY; Cypher spells the range out and groups implicitly by whatever is not aggregated.", "step has no index in any of the three engines, so each one scans every transaction: a pure test of scanning records.", "Gotcha: type is an ENUM in MySQL, and ORDER BY sorts an ENUM by its declared order (CashIn, CashOut, Payment, Transfer, Debit), not alphabetically. CAST(type AS CHAR) makes it sort like Cypher's strings."], "memgraph_same": true, "results": {"neo4j": {"columns": ["type", "txs", "total"], "rows": [["CashIn", 2315, 340482429], ["CashOut", 1155, 154482696], ["Debit", 73, 562282], ["Payment", 1131, 9943448], ["Transfer", 282, 253831303]]}, "memgraph": {"columns": ["type", "txs", "total"], "rows": [["CashIn", 2315, 340482429], ["CashOut", 1155, 154482696], ["Debit", 73, 562282], ["Payment", 1131, 9943448], ["Transfer", 282, 253831303]]}, "mysql": {"columns": ["type", "txs", "total"], "rows": [["CashIn", 2315, 340482429], ["CashOut", 1155, 154482696], ["Debit", 73, 562282], ["Payment", 1131, 9943448], ["Transfer", 282, 253831303]]}}, "timings_ms": {"neo4j": {"median": 126.8, "runs": 5, "mean": 136.2, "min": 124.2, "max": 152.6, "times": [152.63, 126.76, 126.61, 150.89, 124.22], "warmup": 806.25}, "memgraph": {"median": 181.4, "runs": 5, "mean": 191.5, "min": 180.3, "max": 231.9, "times": [231.93, 183.25, 181.37, 180.32, 180.84], "warmup": 230.9}, "mysql": {"median": 1699.8, "runs": 5, "mean": 1727.1, "min": 1653.2, "max": 1891.4, "times": [1724.27, 1891.44, 1699.79, 1653.15, 1666.95], "warmup": 1839.52}}, "answers_agree": true}, {"id": "R4", "part": "records", "level": "Intermediate", "title": "Fraud rate by transaction type", "problem": "Across all 1.07 million transactions: how many of each type, how many fraudulent, and the average amount.", "compare_cols": 4, "neo4j": "MATCH (t:Transaction)\nWITH [l IN labels(t) WHERE l <> \"Transaction\"][0] AS type, t\nRETURN type, count(*) AS txs,\n       sum(CASE WHEN t.fraud THEN 1 ELSE 0 END) AS frauds,\n       round(avg(t.amount), 2) AS avg_amount\nORDER BY frauds DESC, type", "memgraph": "MATCH (t:Transaction)\nWITH [l IN labels(t) WHERE l <> \"Transaction\"][0] AS type, t\nRETURN type, count(*) AS txs,\n       sum(CASE WHEN t.fraud THEN 1 ELSE 0 END) AS frauds,\n       round(avg(t.amount) * 100) / 100 AS avg_amount\nORDER BY frauds DESC, type", "mysql": "SELECT type, COUNT(*) AS txs, SUM(fraud) AS frauds,\n       ROUND(AVG(amount), 2) AS avg_amount\nFROM transactions\nGROUP BY type\nORDER BY frauds DESC, CAST(type AS CHAR)", "differences": ["The classic report query. SQL states it directly; Cypher first has to turn a label back into a value it can group by.", "fraud is a 0/1 column in SQL, so SUM(fraud) counts frauds. Cypher stores a boolean and needs CASE WHEN.", "Dialect gap: Memgraph's round() takes one argument, so round(x, 2) becomes round(x * 100) / 100."], "results": {"neo4j": {"columns": ["type", "txs", "frauds", "avg_amount"], "rows": [["Transfer", 64287, 2302, 857597.41], ["Payment", 246370, 656, 8852.92], ["CashIn", 492356, 0, 141153.31], ["CashOut", 251147, 0, 128013.99], ["Debit", 14509, 0, 6005.69]]}, "memgraph": {"columns": ["type", "txs", "frauds", "avg_amount"], "rows": [["Transfer", 64287, 2302, 857597.41], ["Payment", 246370, 656, 8852.92], ["CashIn", 492356, 0, 141153.31], ["CashOut", 251147, 0, 128013.99], ["Debit", 14509, 0, 6005.69]]}, "mysql": {"columns": ["type", "txs", "frauds", "avg_amount"], "rows": [["Transfer", 64287, 2302, 857597.41], ["Payment", 246370, 656, 8852.92], ["CashIn", 492356, 0, 141153.31], ["CashOut", 251147, 0, 128013.99], ["Debit", 14509, 0, 6005.69]]}}, "timings_ms": {"neo4j": {"median": 444.6, "runs": 5, "mean": 447.2, "min": 420.1, "max": 477.2, "times": [444.64, 477.22, 437.5, 456.59, 420.11], "warmup": 484.5}, "memgraph": {"median": 560.7, "runs": 5, "mean": 560.7, "min": 553.5, "max": 567.4, "times": [566.15, 555.56, 560.72, 567.41, 553.48], "warmup": 649.08}, "mysql": {"median": 1739.7, "runs": 5, "mean": 1740.8, "min": 1734.1, "max": 1753.1, "times": [1734.83, 1734.12, 1753.07, 1742.18, 1739.68], "warmup": 1774.92}}, "answers_agree": true}, {"id": "R5", "part": "records", "level": "Intermediate", "title": "Merchants hit hardest by fraud", "problem": "Which five merchants received the most money in fraudulent payments?", "compare_cols": 4, "neo4j": "MATCH (t:Payment {fraud: true})-[:TO]->(m:Merchant)\nRETURN m.id AS merchant_id, m.name AS merchant, count(t) AS frauds,\n       round(sum(t.amount)) AS fraud_amount\nORDER BY fraud_amount DESC\nLIMIT 5", "memgraph": "MATCH (t:Payment {fraud: true})-[:TO]->(m:Merchant)\nRETURN m.id AS merchant_id, m.name AS merchant, count(t) AS frauds,\n       round(sum(t.amount)) AS fraud_amount\nORDER BY fraud_amount DESC\nLIMIT 5", "mysql": "SELECT m.id AS merchant_id, m.name AS merchant, COUNT(*) AS frauds,\n       ROUND(SUM(t.amount)) AS fraud_amount\nFROM transactions t\nJOIN merchants m ON m.id = t.to_merchant_id\nWHERE t.type = 'Payment' AND t.fraud = 1\nGROUP BY m.id, m.name\nORDER BY fraud_amount DESC\nLIMIT 5", "differences": ["One relationship against one JOIN: the same shape. A single join on an indexed key is SQL's home ground.", "The graph never says how the two connect (-[:TO]-> is stored data); the SQL has to state ON m.id = t.to_merchant_id.", "Gotcha: merchant names are not unique. RETURN m.name alone would make Cypher merge different merchants that share a name, so the query returns m.id as well, just as the SQL groups by m.id."], "memgraph_same": true, "results": {"neo4j": {"columns": ["merchant_id", "merchant", "frauds", "fraud_amount"], "rows": [["01-0000000", "MMrsa Ltd", 24, 149158], ["01-0000002", "MQuantum", 8, 85988], ["01-0000001", "MFelics", 6, 84088], ["01-0000006", "MOrion Ltd", 7, 74886], ["01-0000011", "MVector", 3, 66688]]}, "memgraph": {"columns": ["merchant_id", "merchant", "frauds", "fraud_amount"], "rows": [["01-0000000", "MMrsa Ltd", 24, 149158], ["01-0000002", "MQuantum", 8, 85988], ["01-0000001", "MFelics", 6, 84088], ["01-0000006", "MOrion Ltd", 7, 74886], ["01-0000011", "MVector", 3, 66688]]}, "mysql": {"columns": ["merchant_id", "merchant", "frauds", "fraud_amount"], "rows": [["01-0000000", "MMrsa Ltd", 24, 149158], ["01-0000002", "MQuantum", 8, 85988], ["01-0000001", "MFelics", 6, 84088], ["01-0000006", "MOrion Ltd", 7, 74886], ["01-0000011", "MVector", 3, 66688]]}}, "timings_ms": {"neo4j": {"median": 42.9, "runs": 5, "mean": 43.6, "min": 40.3, "max": 50.6, "times": [40.68, 43.31, 42.93, 50.57, 40.26], "warmup": 290.4}, "memgraph": {"median": 57.8, "runs": 5, "mean": 57.5, "min": 56.3, "max": 58.2, "times": [57.79, 58.01, 58.17, 57.34, 56.33], "warmup": 102.02}, "mysql": {"median": 11.8, "runs": 5, "mean": 13.2, "min": 9.7, "max": 18.4, "times": [18.42, 15.75, 11.84, 10.38, 9.68], "warmup": 29.13}}, "answers_agree": true}, {"id": "R6", "part": "records", "level": "Advanced", "title": "Hourly volume with running total", "problem": "For the first 12 hours: transactions and money moved per hour, the running total so far, and the change from the previous hour.", "compare_cols": 5, "neo4j": "MATCH (t:Transaction)\nWHERE t.step <= 12\nWITH t.step AS step, count(*) AS txs, sum(t.amount) AS volume\nORDER BY step\nWITH collect({step: step, txs: txs, volume: volume}) AS hours\nUNWIND range(0, size(hours) - 1) AS i\nWITH hours, i, hours[i] AS h\nRETURN h.step AS step, h.txs AS txs, round(h.volume) AS volume,\n       round(reduce(s = 0.0, x IN hours[0..i + 1] | s + x.volume)) AS running_total,\n       CASE WHEN i = 0 THEN null ELSE h.txs - hours[i - 1].txs END AS change", "memgraph": "MATCH (t:Transaction)\nWHERE t.step <= 12\nWITH t.step AS step, count(*) AS txs, sum(t.amount) AS volume\nORDER BY step\nWITH collect({step: step, txs: txs, volume: volume}) AS hours\nUNWIND range(0, size(hours) - 1) AS i\nWITH hours, i, hours[i] AS h\nRETURN h.step AS step, h.txs AS txs, round(h.volume) AS volume,\n       round(reduce(s = 0.0, x IN hours[0..i + 1] | s + x.volume)) AS running_total,\n       CASE WHEN i = 0 THEN null ELSE h.txs - hours[i - 1].txs END AS change", "mysql": "SELECT step, COUNT(*) AS txs, ROUND(SUM(amount)) AS volume,\n       ROUND(SUM(SUM(amount)) OVER (ORDER BY step)) AS running_total,\n       COUNT(*) - LAG(COUNT(*)) OVER (ORDER BY step) AS `change`\nFROM transactions\nWHERE step <= 12\nGROUP BY step\nORDER BY step", "differences": ["SQL window functions (SUM ... OVER, LAG) give running totals and previous-row comparisons in one line each.", "Cypher has no window functions. The workaround collects the hours into a list, unwinds it by position and folds the running total with reduce(): it works, but it is a puzzle to read.", "The clearest case of the relational model fitting the question better: this is analytics over ordered rows, with no relationships in sight."], "memgraph_same": true, "results": {"neo4j": {"columns": ["step", "txs", "volume", "running_total", "change"], "rows": [[1, 451, 61652043, 61652043, null], [2, 451, 62181061, 123833104, 0], [3, 450, 70334382, 194167486, -1], [4, 451, 70745862, 264913348, 1], [5, 450, 69046656, 333960005, -1], [6, 451, 68729235, 402689240, 1], [7, 450, 65255436, 467944677, -1], [8, 451, 60411856, 528356532, 1], [9, 450, 62525458, 590881991, -1], [10, 451, 66971317, 657853308, 1], [11, 450, 66840077, 724693385, -1], [12, 451, 54217286, 778910671, 1]]}, "memgraph": {"columns": ["step", "txs", "volume", "running_total", "change"], "rows": [[1, 451, 61652043, 61652043, null], [2, 451, 62181061, 123833104, 0], [3, 450, 70334382, 194167486, -1], [4, 451, 70745862, 264913348, 1], [5, 450, 69046656, 333960005, -1], [6, 451, 68729235, 402689240, 1], [7, 450, 65255436, 467944677, -1], [8, 451, 60411856, 528356532, 1], [9, 450, 62525458, 590881991, -1], [10, 451, 66971317, 657853308, 1], [11, 450, 66840077, 724693385, -1], [12, 451, 54217286, 778910671, 1]]}, "mysql": {"columns": ["step", "txs", "volume", "running_total", "change"], "rows": [[1, 451, 61652043, 61652043, null], [2, 451, 62181061, 123833104, 0], [3, 450, 70334382, 194167486, -1], [4, 451, 70745862, 264913348, 1], [5, 450, 69046656, 333960005, -1], [6, 451, 68729235, 402689240, 1], [7, 450, 65255436, 467944677, -1], [8, 451, 60411856, 528356532, 1], [9, 450, 62525458, 590881991, -1], [10, 451, 66971317, 657853308, 1], [11, 450, 66840077, 724693385, -1], [12, 451, 54217286, 778910671, 1]]}}, "timings_ms": {"neo4j": {"median": 121.2, "runs": 5, "mean": 122.4, "min": 110.3, "max": 135.3, "times": [120.59, 121.16, 110.3, 124.61, 135.29], "warmup": 182.93}, "memgraph": {"median": 112.8, "runs": 5, "mean": 112.9, "min": 112.4, "max": 113.9, "times": [112.41, 113.9, 113.29, 112.38, 112.75], "warmup": 155.37}, "mysql": {"median": 136.9, "runs": 5, "mean": 137.0, "min": 136.5, "max": 137.8, "times": [137.77, 136.93, 136.77, 136.85, 136.5], "warmup": 181.41}}, "answers_agree": true}, {"id": "G1", "part": "relationships", "level": "Intermediate", "title": "Shared-SSN identity rings", "problem": "Find SSNs used by 8 or more clients, a classic sign of synthetic identities, with how many of those clients are mules.", "compare_cols": 3, "neo4j": "MATCH (s:SSN)<-[:HAS_SSN]-(c:Client)\nWITH s, c ORDER BY c.name\nWITH s, count(c) AS clients,\n     sum(CASE WHEN c:Mule THEN 1 ELSE 0 END) AS mules,\n     collect(c.name) AS names\nWHERE clients >= 8\nRETURN s.ssn AS ssn, clients, mules, names\nORDER BY clients DESC, ssn", "memgraph": "MATCH (s:SSN)<-[:HAS_SSN]-(c:Client)\nWITH s, c ORDER BY c.name\nWITH s, count(c) AS clients,\n     sum(CASE WHEN c:Mule THEN 1 ELSE 0 END) AS mules,\n     collect(c.name) AS names\nWHERE clients >= 8\nRETURN s.ssn AS ssn, clients, mules, names\nORDER BY clients DESC, ssn", "mysql": "SELECT ssn, COUNT(*) AS clients, SUM(is_mule) AS mules,\n       GROUP_CONCAT(name ORDER BY name SEPARATOR ', ') AS names\nFROM clients\nGROUP BY ssn\nHAVING clients >= 8\nORDER BY clients DESC, ssn", "differences": ["The crossover question. One shared value is still a records question in SQL: the SSN is a column, so this is one GROUP BY ... HAVING and MySQL keeps pace.", "Cypher filters aggregates with WITH ... WHERE (there is no HAVING) and returns a real list with collect(); SQL flattens it into a string.", "It gets harder for SQL as soon as the question takes a second step, as the next queries show."], "memgraph_same": true, "results": {"neo4j": {"columns": ["ssn", "clients", "mules", "names"], "rows": [["000-00-0000", 21, 2, ["Charles Boyer", "David Williams", "Dominic Clark", "Elizabeth Harris", "Elizabeth White", "Emily Novak", "Hassan Hill", "Hassan Wilson", "Jennifer Haddad", "Jennifer Hill", "Jessica Young", "John Johnson", "Lisa Mckinney", "Marcus Torres", "Mary Ramirez", "Mei Smith", "Michael King", "Michelle Robinson", "Patricia Lee", "Priya Fischer", "Richard Davis"]], ["000-00-0003", 12, 2, ["Felix Hernandez", "James Johnson", "James Taylor", "Karen King", "Karen Lee", "Karen White", "Kimberly Novak", "Olga Miller", "Paul Smith", "Robert Johnson", "Robert Rodriguez", "William Young"]], ["000-00-0002", 9, 2, ["Ashley Fischer", "David Davis", "Emily Clark", "Felix Okafor", "Linda Lopez", "Marcus Miller", "Mark Jackson", "Thomas Mccoy", "William Davis"]], ["000-00-0052", 8, 2, ["Donald Allen", "Hassan Rodriguez", "James Rodriguez", "John Wilson", "Lisa Williams", "Mei Okafor", "Michelle Anderson", "Patricia Moore"]], ["000-00-0057", 8, 2, ["Barbara Burt", "Charles Sato", "John Gonzalez", "John Smith", "Lisa Perez", "Matthew Novak", "Michelle Rodriguez", "Michelle Young"]]]}, "memgraph": {"columns": ["ssn", "clients", "mules", "names"], "rows": [["000-00-0000", 21, 2, ["Charles Boyer", "David Williams", "Dominic Clark", "Elizabeth Harris", "Elizabeth White", "Emily Novak", "Hassan Hill", "Hassan Wilson", "Jennifer Haddad", "Jennifer Hill", "Jessica Young", "John Johnson", "Lisa Mckinney", "Marcus Torres", "Mary Ramirez", "Mei Smith", "Michael King", "Michelle Robinson", "Patricia Lee", "Priya Fischer", "Richard Davis"]], ["000-00-0003", 12, 2, ["Felix Hernandez", "James Johnson", "James Taylor", "Karen King", "Karen Lee", "Karen White", "Kimberly Novak", "Olga Miller", "Paul Smith", "Robert Johnson", "Robert Rodriguez", "William Young"]], ["000-00-0002", 9, 2, ["Ashley Fischer", "David Davis", "Emily Clark", "Felix Okafor", "Linda Lopez", "Marcus Miller", "Mark Jackson", "Thomas Mccoy", "William Davis"]], ["000-00-0052", 8, 2, ["Donald Allen", "Hassan Rodriguez", "James Rodriguez", "John Wilson", "Lisa Williams", "Mei Okafor", "Michelle Anderson", "Patricia Moore"]], ["000-00-0057", 8, 2, ["Barbara Burt", "Charles Sato", "John Gonzalez", "John Smith", "Lisa Perez", "Matthew Novak", "Michelle Rodriguez", "Michelle Young"]]]}, "mysql": {"columns": ["ssn", "clients", "mules", "names"], "rows": [["000-00-0000", 21, 2, "Charles Boyer, David Williams, Dominic Clark, Elizabeth Harris, Elizabeth White, Emily Novak, Hassan Hill, Hassan Wilson, Jennifer Haddad, Jennifer Hill, Jessica Young, John Johnson, Lisa Mckinney, Marcus Torres, Mary Ramirez, Mei Smith, Michael King, Michelle Robinson, Patricia Lee, Priya Fischer, Richard Davis"], ["000-00-0003", 12, 2, "Felix Hernandez, James Johnson, James Taylor, Karen King, Karen Lee, Karen White, Kimberly Novak, Olga Miller, Paul Smith, Robert Johnson, Robert Rodriguez, William Young"], ["000-00-0002", 9, 2, "Ashley Fischer, David Davis, Emily Clark, Felix Okafor, Linda Lopez, Marcus Miller, Mark Jackson, Thomas Mccoy, William Davis"], ["000-00-0052", 8, 2, "Donald Allen, Hassan Rodriguez, James Rodriguez, John Wilson, Lisa Williams, Mei Okafor, Michelle Anderson, Patricia Moore"], ["000-00-0057", 8, 2, "Barbara Burt, Charles Sato, John Gonzalez, John Smith, Lisa Perez, Matthew Novak, Michelle Rodriguez, Michelle Young"]]}}, "timings_ms": {"neo4j": {"median": 22.3, "runs": 5, "mean": 21.6, "min": 13.2, "max": 28.7, "times": [28.7, 24.12, 22.29, 19.59, 13.24], "warmup": 84.05}, "memgraph": {"median": 40.7, "runs": 5, "mean": 41.7, "min": 40.3, "max": 43.6, "times": [43.64, 40.53, 43.23, 40.27, 40.7], "warmup": 75.09}, "mysql": {"median": 16.7, "runs": 5, "mean": 18.9, "min": 15.9, "max": 26.5, "times": [26.45, 19.52, 16.7, 15.91, 15.94], "warmup": 55.65}}, "answers_agree": true}, {"id": "G2", "part": "relationships", "level": "Intermediate", "title": "Clients one identity away from a mule", "problem": "Which clients share an SSN, email or phone number with a known mule? These are the accounts to review next.", "compare_cols": 3, "neo4j": "MATCH (m:Mule)-[:HAS_SSN|HAS_EMAIL|HAS_PHONE]->(id)\n      <-[:HAS_SSN|HAS_EMAIL|HAS_PHONE]-(other:Client)\nWHERE other.id <> m.id\nRETURN count(DISTINCT other) AS linked_clients,\n       count(DISTINCT m) AS mules, count(*) AS links", "memgraph": "MATCH (m:Mule)-[:HAS_SSN|HAS_EMAIL|HAS_PHONE]->(id)\n      <-[:HAS_SSN|HAS_EMAIL|HAS_PHONE]-(other:Client)\nWHERE other.id <> m.id\nRETURN count(DISTINCT other) AS linked_clients,\n       count(DISTINCT m) AS mules, count(*) AS links", "mysql": "WITH links AS (\n  SELECT m.id AS mule_id, o.id AS other_id FROM clients m\n    JOIN clients o ON o.ssn = m.ssn AND o.id <> m.id WHERE m.is_mule = 1\n  UNION ALL\n  SELECT m.id, o.id FROM clients m\n    JOIN clients o ON o.email = m.email AND o.id <> m.id WHERE m.is_mule = 1\n  UNION ALL\n  SELECT m.id, o.id FROM clients m\n    JOIN clients o ON o.phone_number = m.phone_number AND o.id <> m.id WHERE m.is_mule = 1\n)\nSELECT COUNT(DISTINCT other_id) AS linked_clients,\n       COUNT(DISTINCT mule_id) AS mules, COUNT(*) AS links\nFROM links", "differences": ["One pattern with three alternative relationship types against three self-joins stitched together with UNION ALL.", "Adding a fourth identifier (a device ID, say) is one more type in the pattern, and one more UNION branch in SQL."], "memgraph_same": true, "results": {"neo4j": {"columns": ["linked_clients", "mules", "links"], "rows": [[3935, 1375, 5631]]}, "memgraph": {"columns": ["linked_clients", "mules", "links"], "rows": [[3935, 1375, 5631]]}, "mysql": {"columns": ["linked_clients", "mules", "links"], "rows": [[3935, 1375, 5631]]}}, "timings_ms": {"neo4j": {"median": 8.6, "runs": 5, "mean": 8.9, "min": 5.9, "max": 12.4, "times": [12.43, 8.56, 7.01, 10.77, 5.9], "warmup": 52.33}, "memgraph": {"median": 37.3, "runs": 5, "mean": 37.5, "min": 37.0, "max": 38.5, "times": [37.29, 37.75, 37.1, 38.45, 36.98], "warmup": 107.65}, "mysql": {"median": 25.8, "runs": 5, "mean": 26.9, "min": 25.6, "max": 31.7, "times": [31.66, 25.8, 25.79, 25.64, 25.65], "warmup": 67.36}}, "answers_agree": true}, {"id": "G3", "part": "relationships", "level": "Advanced", "title": "Unflagged transfers into mule-linked accounts", "problem": "Find transfers not marked as fraud whose receiver shares an SSN, email or phone with a known mule: likely fraud the bank has not caught yet.", "compare_cols": 3, "neo4j": "MATCH (m:Mule)-[:HAS_SSN|HAS_EMAIL|HAS_PHONE]->()\n      <-[:HAS_SSN|HAS_EMAIL|HAS_PHONE]-(r:Client)\nWHERE NOT r:Mule\nWITH DISTINCT r\nMATCH (t:Transfer {fraud: false})-[:TO]->(r)\nRETURN count(t) AS suspicious_transfers,\n       count(DISTINCT r) AS accounts,\n       round(sum(t.amount)) AS amount", "memgraph": "MATCH (m:Mule)-[:HAS_SSN|HAS_EMAIL|HAS_PHONE]->()\n      <-[:HAS_SSN|HAS_EMAIL|HAS_PHONE]-(r:Client)\nWHERE NOT r:Mule\nWITH DISTINCT r\nMATCH (t:Transfer {fraud: false})-[:TO]->(r)\nRETURN count(t) AS suspicious_transfers,\n       count(DISTINCT r) AS accounts,\n       round(sum(t.amount)) AS amount", "mysql": "WITH linked AS (\n  SELECT o.id FROM clients m\n    JOIN clients o ON o.ssn = m.ssn WHERE m.is_mule = 1 AND o.is_mule = 0\n  UNION\n  SELECT o.id FROM clients m\n    JOIN clients o ON o.email = m.email WHERE m.is_mule = 1 AND o.is_mule = 0\n  UNION\n  SELECT o.id FROM clients m\n    JOIN clients o ON o.phone_number = m.phone_number WHERE m.is_mule = 1 AND o.is_mule = 0\n)\nSELECT COUNT(*) AS suspicious_transfers,\n       COUNT(DISTINCT t.to_client_id) AS accounts,\n       ROUND(SUM(t.amount)) AS amount\nFROM transactions t\nJOIN linked l ON l.id = t.to_client_id\nWHERE t.type = 'Transfer' AND t.fraud = 0", "differences": ["This is fraud detection rather than reporting: it finds transactions nobody has flagged by looking at who the receiver is connected to.", "Cypher chains two patterns: find the mule-linked accounts, then follow the money into them. SQL builds the same set from three self-joins before it can join the transactions."], "memgraph_same": true, "results": {"neo4j": {"columns": ["suspicious_transfers", "accounts", "amount"], "rows": [[28728, 3162, 24766962931]]}, "memgraph": {"columns": ["suspicious_transfers", "accounts", "amount"], "rows": [[28728, 3162, 24766962931]]}, "mysql": {"columns": ["suspicious_transfers", "accounts", "amount"], "rows": [[28728, 3162, 24766962931]]}}, "timings_ms": {"neo4j": {"median": 27.1, "runs": 5, "mean": 28.1, "min": 25.4, "max": 31.2, "times": [31.17, 25.43, 26.65, 30.09, 27.15], "warmup": 366.66}, "memgraph": {"median": 48.0, "runs": 5, "mean": 48.2, "min": 45.7, "max": 51.3, "times": [50.1, 45.72, 51.3, 48.0, 45.85], "warmup": 90.64}, "mysql": {"median": 181.5, "runs": 5, "mean": 181.4, "min": 180.1, "max": 182.4, "times": [182.42, 180.88, 180.1, 181.5, 181.97], "warmup": 224.51}}, "answers_agree": true}, {"id": "G4", "part": "relationships", "level": "Advanced", "title": "Money laundered through mules", "problem": "Find chains where a client sends a fraudulent transfer to a mule, and the mule later passes money on to someone else (layering).", "compare_cols": 3, "neo4j": "MATCH (a:Client)-[:PERFORMED]->(t1:Transfer {fraud: true})-[:TO]->(m:Mule)\n      -[:PERFORMED]->(t2:Transfer)-[:TO]->(b:Client)\nWHERE t2.globalStep > t1.globalStep AND b <> a\nRETURN count(*) AS chains, count(DISTINCT m) AS mules,\n       count(DISTINCT b) AS receivers", "memgraph": "MATCH (a:Client)-[:PERFORMED]->(t1:Transfer {fraud: true})-[:TO]->(m:Mule)\n      -[:PERFORMED]->(t2:Transfer)-[:TO]->(b:Client)\nWHERE t2.globalStep > t1.globalStep AND b <> a\nRETURN count(*) AS chains, count(DISTINCT m) AS mules,\n       count(DISTINCT b) AS receivers", "mysql": "SELECT COUNT(*) AS chains, COUNT(DISTINCT m.id) AS mules,\n       COUNT(DISTINCT t2.to_client_id) AS receivers\nFROM transactions t1\nJOIN clients m       ON m.id = t1.to_client_id AND m.is_mule = 1\nJOIN transactions t2 ON t2.client_id = m.id AND t2.type = 'Transfer'\n                    AND t2.global_step > t1.global_step\nWHERE t1.type = 'Transfer' AND t1.fraud = 1\n  AND t2.to_client_id <> t1.client_id", "differences": ["The Cypher pattern reads like the story: client -> transfer -> mule -> transfer -> client. The SQL hides the same chain in three join conditions.", "Both put the time ordering (t2 after t1) in a filter; neither model gets that for free."], "memgraph_same": true, "results": {"neo4j": {"columns": ["chains", "mules", "receivers"], "rows": [[187009, 968, 6490]]}, "memgraph": {"columns": ["chains", "mules", "receivers"], "rows": [[187009, 968, 6490]]}, "mysql": {"columns": ["chains", "mules", "receivers"], "rows": [[187009, 968, 6490]]}}, "timings_ms": {"neo4j": {"median": 147.6, "runs": 5, "mean": 149.8, "min": 146.1, "max": 154.5, "times": [147.6, 147.25, 154.55, 153.37, 146.14], "warmup": 238.22}, "memgraph": {"median": 968.9, "runs": 5, "mean": 993.5, "min": 964.2, "max": 1070.5, "times": [968.94, 1070.54, 997.69, 966.32, 964.16], "warmup": 1039.84}, "mysql": {"median": 13338.8, "runs": 3, "mean": 13153.1, "min": 12724.0, "max": 13396.4, "times": [13338.83, 12724.0, 13396.39], "warmup": 12930.25}}, "answers_agree": true}, {"id": "G5", "part": "relationships", "level": "Advanced", "title": "Circular money flows", "problem": "Find money that goes round in a circle: A transfers to B, B to C, and C back to A. Cycles like this are a classic sign of laundering.", "compare_cols": 2, "neo4j": "MATCH (a:Client)-[:PERFORMED]->(:Transfer)-[:TO]->(b:Client)\n      -[:PERFORMED]->(:Transfer)-[:TO]->(c:Client)\n      -[:PERFORMED]->(:Transfer)-[:TO]->(a)\nWHERE a <> b AND b <> c AND a <> c\nRETURN count(*) AS cycles, count(DISTINCT a) AS clients_in_cycles", "memgraph": "MATCH (a:Client)-[:PERFORMED]->(:Transfer)-[:TO]->(b:Client)\n      -[:PERFORMED]->(:Transfer)-[:TO]->(c:Client)\n      -[:PERFORMED]->(:Transfer)-[:TO]->(a)\nWHERE a <> b AND b <> c AND a <> c\nRETURN count(*) AS cycles, count(DISTINCT a) AS clients_in_cycles", "mysql": "SELECT COUNT(*) AS cycles, COUNT(DISTINCT t1.client_id) AS clients_in_cycles\nFROM transactions t1\nJOIN transactions t2 ON t2.client_id = t1.to_client_id AND t2.type = 'Transfer'\nJOIN transactions t3 ON t3.client_id = t2.to_client_id AND t3.type = 'Transfer'\n                    AND t3.to_client_id = t1.client_id\nWHERE t1.type = 'Transfer'\n  AND t1.client_id <> t2.client_id\n  AND t2.client_id <> t3.client_id\n  AND t1.client_id <> t3.client_id", "differences": ["The pattern closes on itself: the last node is the same variable a as the first. That is the whole cycle check.", "SQL needs a three-way self-join of a million-row table and states the closing condition by hand (t3.to_client_id = t1.client_id).", "A 4-step cycle is one more hop in the pattern; in SQL it is a fourth self-join of the whole table, and the cost multiplies again."], "memgraph_same": true, "results": {"neo4j": {"columns": ["cycles", "clients_in_cycles"], "rows": [[7641, 1200]]}, "memgraph": {"columns": ["cycles", "clients_in_cycles"], "rows": [[7641, 1200]]}, "mysql": {"columns": ["cycles", "clients_in_cycles"], "rows": [[7641, 1200]]}}, "timings_ms": {"neo4j": {"median": 353.7, "runs": 5, "mean": 408.5, "min": 328.5, "max": 599.8, "times": [353.67, 345.21, 328.46, 415.54, 599.85], "warmup": 586.9}, "memgraph": {"median": 29318.2, "runs": 3, "mean": 29599.9, "min": 28701.2, "max": 30780.2, "times": [30780.16, 29318.24, 28701.2], "warmup": 42755.6}, "mysql": {"median": 66009.3, "runs": 3, "mean": 66042.9, "min": 65386.9, "max": 66732.4, "times": [65386.92, 66009.27, 66732.45], "warmup": 65239.0}}, "answers_agree": true}, {"id": "G6", "part": "relationships", "level": "Expert", "title": "How far can a mule's money spread?", "problem": "Starting from mule Richard Davis, how many different clients can money reach in up to 3 transfers (mule -> A -> B -> C)?", "compare_cols": 1, "neo4j": "MATCH (m:Client {id: \"4000000000000000\"})-[:PERFORMED|TO*2..6]->(c:Client)\nWHERE c <> m\nRETURN count(DISTINCT c) AS reachable", "memgraph": "MATCH (m:Client {id: \"4000000000000000\"})-[:PERFORMED|TO*2..6]->(c:Client)\nWHERE c <> m\nRETURN count(DISTINCT c) AS reachable", "mysql": "WITH RECURSIVE reach (id, depth) AS (\n  SELECT CAST('4000000000000000' AS CHAR(32)), 0\n  UNION DISTINCT\n  SELECT t.to_client_id, r.depth + 1\n  FROM reach r\n  JOIN transactions t ON t.client_id = r.id\n  WHERE t.type = 'Transfer' AND r.depth < 3\n)\nSELECT COUNT(DISTINCT id) AS reachable\nFROM reach WHERE id <> '4000000000000000'", "differences": ["Cypher puts 'any number of hops' into the pattern itself: *2..6 relationships means 1 to 3 transfers. SQL needs a recursive CTE with its own depth counter.", "The SQL rebuilds the graph's shape by hand (client_id -> to_client_id, type = 'Transfer'). The graph already knows only transfers lead to clients.", "Richard Davis is the busiest account in the data (53,692 transactions), which makes this the heaviest traversal in the set."], "memgraph_same": true, "results": {"neo4j": {"columns": ["reachable"], "rows": [[7801]]}, "memgraph": {"columns": ["reachable"], "rows": [[7801]]}, "mysql": {"columns": ["reachable"], "rows": [[7801]]}}, "timings_ms": {"neo4j": {"median": 1598.1, "runs": 5, "mean": 1675.2, "min": 1442.3, "max": 2011.4, "times": [1543.84, 2011.37, 1442.28, 1780.3, 1598.13], "warmup": 2338.87}, "memgraph": {"median": 8705.3, "runs": 3, "mean": 8720.8, "min": 8639.7, "max": 8817.4, "times": [8639.72, 8817.44, 8705.26], "warmup": 9082.79}, "mysql": {"median": 3104.9, "runs": 5, "mean": 3104.3, "min": 3092.9, "max": 3111.6, "times": [3111.64, 3104.9, 3104.49, 3107.74, 3092.91], "warmup": 3768.26}}, "answers_agree": true}, {"id": "G7", "part": "relationships", "level": "Expert", "title": "Shortest identity link between two people", "problem": "How is client Donald Martinez connected to mule Richard Davis through shared SSNs, emails and phones, and through whom?", "compare_cols": 1, "neo4j": "MATCH (a:Client {id: \"4000000000000000\"}), (b:Client {id: \"4000000000001638\"})\nMATCH p = shortestPath((a)-[:HAS_SSN|HAS_EMAIL|HAS_PHONE*..40]-(b))\nRETURN length(p) AS hops,\n       [n IN nodes(p) WHERE n:Client | n.name] AS via_clients", "memgraph": "MATCH (a:Client {id: \"4000000000000000\"}), (b:Client {id: \"4000000000001638\"})\nMATCH p = (a)-[:HAS_SSN|HAS_EMAIL|HAS_PHONE *BFS ..40]-(b)\nRETURN size(relationships(p)) AS hops,\n       [n IN nodes(p) WHERE n:Client | n.name] AS via_clients", "mysql": "WITH RECURSIVE links (src, dst) AS (\n  SELECT a.id, b.id FROM clients a JOIN clients b ON b.ssn = a.ssn AND b.id <> a.id\n  UNION SELECT a.id, b.id FROM clients a JOIN clients b ON b.email = a.email AND b.id <> a.id\n  UNION SELECT a.id, b.id FROM clients a JOIN clients b ON b.phone_number = a.phone_number AND b.id <> a.id\n),\nbfs (id, depth) AS (\n  SELECT CAST('4000000000000000' AS CHAR(32)), 0\n  UNION DISTINCT\n  SELECT l.dst, b.depth + 1 FROM bfs b JOIN links l ON l.src = b.id\n  WHERE b.depth < 20\n)\nSELECT MIN(depth) * 2 AS hops FROM bfs WHERE id = '4000000000001638'", "differences": ["Neo4j has shortestPath(); Memgraph rejects it and uses its own *BFS syntax inside the pattern. This is the biggest dialect gap between the two graph engines.", "Both graphs return the actual chain of 17 people. The SQL returns only the distance: listing the people would mean carrying path strings through the recursion, which multiplies the work.", "The SQL rebuilds person-to-person links from three self-joins and needs a depth limit (20) chosen in advance."], "results": {"neo4j": {"columns": ["hops", "via_clients"], "rows": [[32, ["Richard Davis", "Joshua Jackson", "Bentley Clark", "Jennifer Davis", "Jennifer Johnson", "Daniel Peck", "Christopher Ramirez", "Mark Perez", "Emily Mckinney", "Michael Jones", "Mei Lopez", "Donna Thompson", "Joseph Gonzalez", "Donald Jones", "Jessica Brown", "Joseph Smith", "Donald Martinez"]]]}, "memgraph": {"columns": ["hops", "via_clients"], "rows": [[32, ["Richard Davis", "Joshua Jackson", "Bentley Clark", "Jennifer Davis", "Jennifer Johnson", "Daniel Peck", "Christopher Ramirez", "Mark Perez", "Emily Mckinney", "Michael Jones", "Mei Lopez", "Donna Thompson", "Joseph Gonzalez", "Donald Jones", "Jessica Brown", "Joseph Smith", "Donald Martinez"]]]}, "mysql": {"columns": ["hops"], "rows": [[32]]}}, "timings_ms": {"neo4j": {"median": 5.8, "runs": 5, "mean": 11.6, "min": 4.0, "max": 33.7, "times": [9.31, 5.83, 5.1, 33.74, 3.97], "warmup": 41.5}, "memgraph": {"median": 31.2, "runs": 5, "mean": 31.3, "min": 28.6, "max": 33.5, "times": [28.64, 29.87, 33.5, 33.07, 31.23], "warmup": 51.58}, "mysql": {"median": 900.5, "runs": 5, "mean": 902.1, "min": 899.4, "max": 906.2, "times": [906.15, 904.97, 900.51, 899.35, 899.73], "warmup": 1058.52}}, "answers_agree": true}], "env": {"hardware": {"model": "Mac15,6", "cpu": "Apple M3 Pro", "cores": "5 performance + 6 efficiency (11 total)", "memory": "18 GiB", "os": "macOS 27.0.1 (26A434)", "arch": "arm64"}, "software": {"neo4j": "Neo4j Kernel 2026.09.0 community", "memgraph": "Memgraph 3.13.1", "memgraph_image": "memgraph/memgraph-mage:latest", "mysql": "MySQL 8.4.3 MySQL Community Server - GPL", "colima": "colima version 0.10.3", "docker": "29.5.2", "python": "3.15.0", "neo4j_driver": "6.4.1", "pymysql": "2.2.8"}, "config": {"neo4j": {"db.query.default_language": "CYPHER_25", "server.cypher.parallel.worker_limit": "0", "server.memory.heap.initial_size": null, "server.memory.heap.max_size": null, "server.memory.pagecache.size": null}, "memgraph": {"memory_res": "1.55GiB"}, "mysql": {"cte_max_recursion_depth": "1000", "innodb_buffer_pool_instances": "2", "innodb_buffer_pool_size": "2147483648", "innodb_flush_log_at_trx_commit": "1", "join_buffer_size": "262144", "max_heap_table_size": "16777216", "sort_buffer_size": "262144", "tmp_table_size": "16777216"}, "colima_vm": {"name": "default", "status": "Running", "arch": "aarch64", "cpus": 4, "memory": 8589934592, "disk": 64424509440, "runtime": "docker"}}}};
+const ENGINES = [
+  { key: "neo4j", name: "Neo4j", lang: "Cypher", color: "var(--neo)" },
+  { key: "memgraph", name: "Memgraph", lang: "Cypher (Memgraph)", color: "var(--mem)" },
+  { key: "mysql", name: "MySQL", lang: "SQL", color: "var(--sql)" },
+];
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmtMs = ms => ms < 10 ? `${ms.toFixed(1)} ms` : ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(2)} s`;
+const fmtVal = v => {
+  if (typeof v === "number") return Number.isInteger(v) ? v.toLocaleString("en-US") : v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return esc(v);
+};
+
+// --- syntax highlighting for Cypher and SQL
+const KEYWORDS = new Set(("MATCH OPTIONAL WHERE RETURN WITH ORDER BY LIMIT AS AND OR NOT DISTINCT CASE WHEN THEN ELSE END IN " +
+  "SELECT FROM JOIN ON GROUP HAVING UNION ALL RECURSIVE DESC ASC IS NULL TRUE FALSE BFS SEPARATOR CHAR").split(" "));
+function highlight(src) {
+  const re = /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\b\d+(?:\.\d+)?\b)|(:[A-Za-z_]\w*)|([A-Za-z_]\w*)|([\s\S])/g;
+  let out = "", m;
+  while ((m = re.exec(src))) {
+    if (m[1]) out += `<span class="s">${esc(m[1])}</span>`;
+    else if (m[2]) out += `<span class="n">${m[2]}</span>`;
+    else if (m[3]) out += `:<span class="l">${esc(m[3].slice(1))}</span>`;
+    else if (m[4]) {
+      const w = m[4];
+      if (KEYWORDS.has(w.toUpperCase()) && (w === w.toUpperCase() || w === "true" || w === "false")) out += `<span class="k">${w}</span>`;
+      else if (src[re.lastIndex] === "(" || (src[re.lastIndex] === " " && src[re.lastIndex + 1] === "{" && w === "COUNT")) out += `<span class="f">${w}</span>`;
+      else out += esc(w);
+    } else out += esc(m[5]);
+  }
+  return out;
+}
+
+// --- log-scale timing chart
+const LOG_MIN = 0.1, LOG_MAX = 30000;
+const logPos = (ms, w) => (Math.log10(Math.max(ms, LOG_MIN) / LOG_MIN) / Math.log10(LOG_MAX / LOG_MIN)) * w;
+function perfChart(t) {
+  const W = 640, left = 84, right = 78, plotW = W - left - right, rowH = 30, top = 8, H = top + rowH * 3 + 26;
+  const ticks = [[1, "1 ms"], [10, "10 ms"], [100, "100 ms"], [1000, "1 s"], [10000, "10 s"]];
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Median time per engine, log scale">`;
+  for (const [v, lab] of ticks) {
+    const x = left + logPos(v, plotW);
+    s += `<line class="grid" x1="${x}" x2="${x}" y1="${top - 4}" y2="${top + rowH * 3}"/>`;
+    s += `<text class="axis" x="${x}" y="${H - 6}" text-anchor="middle">${lab}</text>`;
+  }
+  ENGINES.forEach((e, i) => {
+    const ms = t[e.key].median, y = top + i * rowH, w = Math.max(2, logPos(ms, plotW));
+    s += `<text class="lab" x="0" y="${y + 19}">${e.name}</text>`;
+    s += `<rect x="${left}" y="${y + 6}" width="${w}" height="18" rx="3" fill="${e.color}"/>`;
+    s += `<text class="val" x="${left + w + 8}" y="${y + 19}">${fmtMs(ms)}</text>`;
+  });
+  return s + "</svg>";
+}
+
+function verdict(t) {
+  const sorted = ENGINES.map(e => ({ ...e, ms: t[e.key].median })).sort((a, b) => a.ms - b.ms);
+  const [best, , worst] = sorted;
+  const ratio = worst.ms / best.ms;
+  if (ratio < 1.5) return `All three finish within 1.5× of each other (${fmtMs(best.ms)} to ${fmtMs(worst.ms)}).`;
+  const mid = sorted[1];
+  const r2 = mid.ms / best.ms;
+  return `<strong>${best.name}</strong> is fastest: ${r2 >= 1.5 ? `${r2.toFixed(r2 < 10 ? 1 : 0)}× faster than ${mid.name} and ` : ""}${ratio.toFixed(ratio < 10 ? 1 : 0)}× faster than ${worst.name}.`;
+}
+
+function resultTable(q) {
+  const r = q.results.neo4j;
+  const head = r.columns.map(c => `<th>${esc(c)}</th>`).join("");
+  const rows = r.rows.map(row => "<tr>" + row.map((v, i) => {
+    const col = r.columns[i];
+    if (Array.isArray(v) && col === "via_clients") {
+      const chips = v.map((n, j) => `<span class="${j === 0 || j === v.length - 1 ? "end" : ""}">${esc(n)}</span>`).join("<i>→</i>");
+      return `<td class="list"><div class="chain">${chips}</div></td>`;
+    }
+    if (Array.isArray(v)) {
+      const shown = v.slice(0, 5).map(esc).join(", ");
+      return `<td class="list">${shown}${v.length > 5 ? ` … +${v.length - 5} more` : ""}</td>`;
+    }
+    if (col === "mule") return `<td>${v ? "yes" : "no"}</td>`;
+    return `<td class="num">${fmtVal(v)}</td>`;
+  }).join("") + "</tr>").join("");
+  return `<div class="table-wrap"><table class="res"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+const CAVEATS = {
+  G4: "MySQL's plan is an index nested-loop join: for each of the 2,302 fraudulent transfers it fetches every transaction of the receiving mule, then reads each row back to check its type and time. The graph engines follow the mule's PERFORMED relationships directly.",
+  G5: "Neo4j and Memgraph run the identical query text here, yet finish over 100× apart: the data model is the same, so the gap comes from each engine's query planner and execution. Choosing a graph model is not the same as choosing a fast engine.",
+  G6: "The slowest case for Memgraph here. The likely cause is expanding every variable-length path of up to 6 relationships before DISTINCT collapses them. MySQL's recursive CTE deduplicates (client, depth) pairs at every step, which prunes far earlier.",
+  G7: "MySQL computes only the distance. The graph engines also return the 17 people on the path, and still finish in milliseconds.",
+};
+
+function codePanel(q, e) {
+  const same = e.key === "memgraph" && q.memgraph_same;
+  const differs = e.key === "memgraph" && !q.memgraph_same;
+  const id = `${q.id}-${e.key}`;
+  return `<div class="code">
+    <header>
+      <i class="dot ${e.key}"></i><span class="name">${e.name}</span><span class="lang">${e.lang}</span>
+      ${same ? '<span class="same">Same as Neo4j</span>' : ""}${differs ? '<span class="differs">Differs from Neo4j</span>' : ""}
+      <button type="button" data-copy="${id}" aria-label="Copy ${e.name} query for ${q.id}">Copy</button>
+    </header>
+    <pre id="${id}">${highlight(q[e.key])}</pre>
+  </div>`;
+}
+
+function render() {
+  const qs = DATA.queries;
+  const allAgree = qs.every(q => q.answers_agree);
+
+  document.getElementById("facts").innerHTML = [
+    ["1,100,000", "nodes / rows in each engine"],
+    ["3,238,159", "relationships / foreign-key links"],
+    [`${qs.length}`, "questions, simple to expert"],
+    [`${qs.filter(q => q.answers_agree).length} / ${qs.length}`, "identical answers in all three"],
+  ].map(([n, l]) => `<div><strong>${n}</strong><span>${l}</span></div>`).join("");
+
+  const parts = DATA.parts;
+  const partNo = key => Object.keys(parts).indexOf(key) + 1;
+
+  // the two parts: who was fastest where, and how the best graph engine compares with MySQL
+  document.getElementById("thesis").innerHTML = Object.entries(parts).map(([key, p]) => {
+    const pq = qs.filter(q => q.part === key);
+    const wins = Object.fromEntries(ENGINES.map(e => [e.key, 0]));
+    let logSum = 0;
+    for (const q of pq) {
+      const t = q.timings_ms;
+      wins[ENGINES.reduce((a, e) => (t[e.key].median < t[a].median ? e.key : a), "neo4j")]++;
+      logSum += Math.log(t.mysql.median / Math.min(t.neo4j.median, t.memgraph.median));
+    }
+    const g = Math.exp(logSum / pq.length);
+    const cmp = g >= 1.5 ? `the faster graph engine beats MySQL by ${g.toFixed(g < 10 ? 1 : 0)}× on a typical question`
+      : g <= 1 / 1.5 ? `MySQL beats the faster graph engine by ${(1 / g).toFixed(1)}× on a typical question`
+      : "MySQL and the faster graph engine are within 1.5× of each other on a typical question";
+    return `<div class="panel">
+      <span class="partno">Part ${partNo(key)} · ${pq[0].id}–${pq[pq.length - 1].id}</span>
+      <h3>${esc(p.title)}</h3>
+      <p>${esc(p.blurb)}</p>
+      <div class="tally">Fastest on: ${ENGINES.map(e => `<span><i class="dot ${e.key}"></i>${e.name} <strong>${wins[e.key]}</strong></span>`).join("")}</div>
+      <p>Measured: ${cmp} (geometric mean).</p>
+    </div>`;
+  }).join("");
+
+  // index
+  let nav = '<div class="eyebrow">Queries</div>', tier = "";
+  for (const q of qs) {
+    if (q.part !== tier) { tier = q.part; nav += `<div class="tier">Part ${partNo(tier)} · ${esc(parts[tier].title.replace("Questions ", ""))}</div>`; }
+    nav += `<a href="#${q.id.toLowerCase()}"><b>${q.id}</b><span>${esc(q.title)}</span></a>`;
+  }
+  nav += `<div class="tier">More</div><a href="#measurements"><b>·</b><span>Runtimes and setup</span></a><a href="#method"><b>·</b><span>How it was measured</span></a>`;
+  document.getElementById("index").innerHTML = nav;
+
+  // at a glance
+  let g = `<thead><tr><th>Question</th><th>Level</th>${ENGINES.map(e => `<th><i class="dot ${e.key}"></i> ${e.name}</th>`).join("")}</tr></thead><tbody>`;
+  let gpart = "";
+  for (const q of qs) {
+    if (q.part !== gpart) { gpart = q.part; g += `<tr class="part"><td colspan="5">Part ${partNo(gpart)} · ${esc(parts[gpart].title)}</td></tr>`; }
+    const best = Math.min(...ENGINES.map(e => q.timings_ms[e.key].median));
+    g += `<tr><td class="q"><a href="#${q.id.toLowerCase()}"><span><b class="qid">${q.id}</b> ${esc(q.title)}</span></a></td><td><span class="level">${q.level}</span></td>`;
+    for (const e of ENGINES) {
+      const ms = q.timings_ms[e.key].median;
+      g += `<td class="t"><div class="cell ${ms === best ? "best" : ""}"><span class="v">${fmtMs(ms)}</span>
+        <div class="mini"><i style="width:${(logPos(ms, 100)).toFixed(1)}%;background:${e.color}"></i></div></div></td>`;
+    }
+    g += "</tr>";
+  }
+  document.getElementById("glance").innerHTML = g + "</tbody>";
+  document.getElementById("glance-note").textContent =
+    `Median of ${DATA.runs} warm runs per engine (${DATA.slow_runs} when one run takes over ${DATA.slow_ms / 1000} s), measured ${DATA.generated}. Every individual run, with its average, is listed under Performance measurements. Bars use a log scale (0.1 ms to 30 s), so each step is 10× slower. ` +
+    (allAgree ? "All three engines returned the same answer to every question." : "Some answers differ; see the flagged questions.");
+
+  // per-query sections
+  let qpart = "";
+  document.getElementById("queries").innerHTML = qs.map(q => {
+    let head = "";
+    if (q.part !== qpart) {
+      qpart = q.part;
+      head = `<div class="part-head" id="part${partNo(qpart)}"><span class="partno">Part ${partNo(qpart)}</span><h2>${esc(parts[qpart].title)}</h2><p>${esc(parts[qpart].blurb)}</p></div>`;
+    }
+    return head + `
+    <section class="query" id="${q.id.toLowerCase()}" aria-labelledby="${q.id}-h">
+      <div class="qhead"><span class="qid">${q.id}</span><h2 id="${q.id}-h">${esc(q.title)}</h2><span class="level">${q.level}</span></div>
+      <p class="problem"><b>The problem</b>${esc(q.problem)}</p>
+      <div class="codes">${ENGINES.map(e => codePanel(q, e)).join("")}</div>
+      <div class="split">
+        <div class="panel box">
+          <h3>What changes between the queries</h3>
+          <ul>${q.differences.map(d => `<li>${esc(d)}</li>`).join("")}</ul>
+        </div>
+        <div class="panel box answer">
+          <h3>The answer</h3>
+          <span class="agree ${q.answers_agree ? "" : "no"}">${q.answers_agree ? "✓ Same answer from all three engines" : "✗ Engines disagree"}</span>
+          ${resultTable(q)}
+        </div>
+      </div>
+      <div class="panel box perf">
+        <h3>Performance · median of warm runs (${[...new Set(ENGINES.map(e => q.timings_ms[e.key].runs))].join(" or ")} per engine)</h3>
+        ${perfChart(q.timings_ms)}
+        <p class="verdict">${verdict(q.timings_ms)}</p>
+        ${CAVEATS[q.id] ? `<p class="caveat">${esc(CAVEATS[q.id])}</p>` : ""}
+      </div>
+    </section>`;
+  }).join("");
+
+  document.getElementById("method-list").innerHTML = [
+    `Each query ran once to warm up (not counted), then ${DATA.runs} timed runs per engine (${DATA.slow_runs} if the warm-up took over ${DATA.slow_ms / 1000} s, to keep the slowest queries to minutes). Every run is reported, with the average and the median; charts use the median because a single slow run moves an average more.`,
+    "External timing: Python's time.perf_counter() around execute + fetch of every row, over one open connection per engine (official neo4j driver for Neo4j and Memgraph, PyMySQL for MySQL). We timed from the client rather than using each engine's own profiler (PROFILE, EXPLAIN ANALYZE) because those report different things in each system; client time is the one measure all three share.",
+    "The answers are compared across engines automatically: floats rounded to 2 decimals, booleans as 0/1. G7 compares the hop count, since MySQL does not return the path.",
+    `Machine: ${esc(DATA.machine)}. Dataset: fraud_1_1m (seed 42), identical in all three engines, verified with 25 property and edge checksums.`,
+  ].map(x => `<li>${x}</li>`).join("");
+
+  renderMeasurements(qs);
+
+  document.addEventListener("click", ev => {
+    const btn = ev.target.closest("button[data-copy]");
+    if (!btn) return;
+    const pre = document.getElementById(btn.dataset.copy);
+    const done = label => { btn.textContent = label; setTimeout(() => (btn.textContent = "Copy"), 1600); };
+    const selectIt = () => { const r = document.createRange(); r.selectNodeContents(pre); const s = getSelection(); s.removeAllRanges(); s.addRange(r); done("Selected"); };
+    try {
+      navigator.clipboard.writeText(pre.textContent).then(() => done("Copied"), selectIt);
+    } catch (e) { selectIt(); }
+  });
+
+  if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
+}
+
+
+// ---- performance measurements: environment, configuration, every run
+const CONFIG_NOTES = [
+  // [engine label, key in env.config, setting, default, why]
+  ["MySQL", "mysql", "innodb_buffer_pool_size", "134217728 (128 MiB)", "Raised to 2 GiB so the 560 MB transactions table and its indexes stay in memory, as the graph engines keep theirs. With the default, MySQL would be timed partly on disk reads."],
+  ["MySQL", "mysql", "cte_max_recursion_depth", "1000", "Left at the default; the recursive queries (G6, G7) stop at depth 3 and 20."],
+  ["MySQL", "mysql", "join_buffer_size", "262144 (256 KiB)", "Left at the default. No per-query tuning."],
+  ["Neo4j", "neo4j", "server.memory.heap.max_size", "auto-sized by Neo4j", "Left at the default (Homebrew install, nothing set in neo4j.conf)."],
+  ["Neo4j", "neo4j", "server.memory.pagecache.size", "auto-sized by Neo4j", "Left at the default; the 1.1 M-node store fits in the automatic page cache."],
+  ["Memgraph", "memgraph", "storage_mode", "IN_MEMORY_TRANSACTIONAL", "Left at the default: Memgraph keeps the whole graph in RAM."],
+  ["Colima VM", "colima_vm", "cpus", "2", "Set to 4 when the VM was created, so Memgraph is not starved of CPU inside Docker."],
+  ["Colima VM", "colima_vm", "memory", "2 GiB", "Set to 8 GiB so the in-memory graph (about 1.1 M nodes, 3.2 M relationships) fits with room to spare."],
+];
+const fmtRun = ms => ms == null ? "–" : ms < 10 ? ms.toFixed(2) : ms < 1000 ? ms.toFixed(1) : Math.round(ms).toLocaleString("en-US");
+const fmtBytes = v => (/^\d+$/.test(String(v)) && +v >= 1024 * 1024) ? `${v} (${(+v / 2 ** 30 >= 1 ? (+v / 2 ** 30).toFixed(0) + " GiB" : (+v / 2 ** 20).toFixed(0) + " MiB")})` : String(v);
+
+function renderMeasurements(qs) {
+  const env = DATA.env;
+  const kv = obj => Object.entries(obj).map(([k, v]) => `<dt>${esc(k.replace(/_/g, " "))}</dt><dd>${esc(v)}</dd>`).join("");
+  const hasTimes = qs.every(q => ENGINES.every(e => Array.isArray(q.timings_ms[e.key].times)));
+
+  document.getElementById("meas-intro").textContent =
+    `Every query was run on every system at least ${Math.min(DATA.runs, DATA.slow_runs)} times after one warm-up run. ` +
+    `Below: the machine, the exact versions, each configuration setting that matters and why it is set that way, then every individual runtime with its average. Measured ${DATA.generated}.`;
+
+  if (env) {
+    const hw = env.hardware || {};
+    document.getElementById("env-hw").innerHTML = kv({ model: hw.model, cpu: hw.cpu, cores: hw.cores, memory: hw.memory, os: hw.os, arch: hw.arch });
+    const sw = env.software || {};
+    document.getElementById("env-sw").innerHTML = kv({
+      neo4j: sw.neo4j, memgraph: `${sw.memgraph}${sw.memgraph_image ? ` · image ${sw.memgraph_image}` : ""}`, mysql: sw.mysql,
+      "colima / docker": `${sw.colima} · Docker ${sw.docker}`, python: sw.python,
+      drivers: `neo4j ${sw.neo4j_driver} · PyMySQL ${sw.pymysql}`,
+    });
+    let c = "<thead><tr><th>System</th><th>Setting</th><th>Value used</th><th>Default</th><th>Why</th></tr></thead><tbody>";
+    for (const [sys, key, name, def, why] of CONFIG_NOTES) {
+      const block = (env.config || {})[key];
+      const val = block && typeof block === "object" ? block[name] : undefined;
+      const shown = val === undefined ? "default (not queried)" : val === null ? "not set (default)" : fmtBytes(val);
+      const changed = /Raised|Set to/.test(why);
+      c += `<tr class="${changed ? "changed" : ""}"><td>${sys}</td><td class="v">${esc(name)}</td><td class="v">${esc(shown)}</td><td class="v">${esc(def)}</td><td>${esc(why)}</td></tr>`;
+    }
+    c += `<tr><td>All</td><td class="v">indexes</td><td class="v">from the loaders</td><td class="v">–</td><td>Only the indexes and constraints each loader creates (ids, SSN/email/phone, foreign keys). Nothing added for individual queries; we report the shapes, not a tuned best case.</td></tr>`;
+    document.getElementById("env-cfg").innerHTML = c + "</tbody>";
+  } else {
+    document.getElementById("env-hw").innerHTML = kv({ machine: DATA.machine, note: "run benchmark.py --env-only to record details" });
+    document.getElementById("env-sw").innerHTML = kv({ note: "run benchmark.py --env-only to record versions" });
+    document.getElementById("env-cfg").innerHTML = "<tbody><tr><td>Run benchmark.py --env-only to record the settings.</td></tr></tbody>";
+  }
+
+  const maxRuns = Math.max(...qs.flatMap(q => ENGINES.map(e => (q.timings_ms[e.key].times || []).length)), 3);
+  let t = `<thead><tr><th>Query</th><th>System</th>${Array.from({ length: maxRuns }, (_, i) => `<th class="rt">Run ${i + 1}</th>`).join("")}<th class="rt">Average</th><th class="rt">Median</th></tr></thead><tbody>`;
+  for (const q of qs) {
+    ENGINES.forEach((e, i) => {
+      const tm = q.timings_ms[e.key], times = tm.times || [];
+      const avg = tm.mean ?? (times.length ? times.reduce((a, b) => a + b, 0) / times.length : null);
+      t += `<tr class="${i === 0 ? "first" : ""}">${i === 0 ? `<td class="qcell" rowspan="3"><a href="#${q.id.toLowerCase()}">${q.id}</a> <span class="note">${esc(q.title)}</span></td>` : ""}` +
+        `<td><i class="dot ${e.key}"></i> ${e.name}</td>` +
+        Array.from({ length: maxRuns }, (_, k) => `<td class="rt">${fmtRun(times[k])}</td>`).join("") +
+        `<td class="rt avg">${fmtRun(avg)}</td><td class="rt">${fmtRun(tm.median)}</td></tr>`;
+    });
+  }
+  document.getElementById("runs").innerHTML = t + "</tbody>";
+  document.getElementById("runs-note").textContent = hasTimes
+    ? `Times in milliseconds, client-side wall clock, warm-up excluded. A dash means that query had fewer runs (queries over ${DATA.slow_ms / 1000} s get ${DATA.slow_runs}).`
+    : "This results file predates per-run logging: run presentation/benchmark.py again to fill in every run and the average.";
+}
+
+if (DATA) render();
+else document.getElementById("queries").textContent = "No results embedded. Run presentation/build_page.py.";
+</script>
